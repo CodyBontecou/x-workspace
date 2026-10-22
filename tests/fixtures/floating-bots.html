@@ -1,0 +1,20 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Floating bot chat fixture</title>
+<style>body { background: #111; color: #ddd; font: 14px system-ui; } .fixture-controls { width: 500px; } .fixture-controls button { padding: 12px; }</style>
+<div class="fixture-controls"><h1>Floating bot chat fixture</h1><button id="update">Simulate inbox update</button><p>Local fake conversations. No messages leave this page.</p></div>
+<div id="fixture-route" role="status">Fixture home</div>
+<script>
+  const listeners = [];
+  window.chrome = {
+    runtime: { sendMessage: async () => ({ ok: !new URL(location.href).searchParams.has('failure') }) },
+    storage: {
+      local: { get: async defaults => ({ ...defaults, ...JSON.parse(localStorage.getItem('xw-fixture-settings') || '{}') }),
+        set: async settings => { localStorage.setItem('xw-fixture-settings', JSON.stringify(settings)); listeners.forEach(fn => fn(Object.fromEntries(Object.entries(settings).map(([key, newValue]) => [key, { newValue }])), 'local')); } },
+      onChanged: { addListener: fn => listeners.push(fn) }
+    }
+  };
+  document.querySelector('#update').onclick = () => document.querySelector('#x-workspace').shadowRoot.querySelector('iframe[name="x-workspace-native-chat"]').contentWindow.postMessage({ type: 'fixture:update' }, location.origin);
+  window.addEventListener('popstate', () => { document.querySelector('#fixture-route').textContent = 'Viewing ' + location.pathname; });
+</script>
+<script src="/avatars.js"></script><script src="/unread.js"></script><script src="/bots.js"></script><script src="/chat-bridge.js"></script><script src="/chat-transport.js"></script><script src="/navigation-main.js"></script><script src="/navigation.js"></script><script src="/floating-bots.js"></script><script src="/content.js"></script>

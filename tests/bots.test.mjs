@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import vm from 'node:vm';
+const context = vm.createContext({ URL });
+for (const file of ['unread.js', 'bots.js']) vm.runInContext(await readFile(new URL(`../${file}`, import.meta.url), 'utf8'), context);
+const bots = context.XWorkspaceBots;
+const origin = 'https://x.com';
+for (const label of ['Primary bot', 'Research, Primary bot', 'Research, Primary bot, unread', 'Research, primary bot']) assert(bots.isPrimaryBot(label));
+for (const label of ['', 'Research bot', 'Not Primary bot', 'Primary bot helper', 'Research, unread']) assert(!bots.isPrimaryBot(label));
+function link(label, name, dot = false) {
+  const row = { querySelector: selector => selector === '.line-clamp-1' ? { textContent: name } : selector === 'img' ? null : dot ? {} : null };
+  return { getAttribute: key => key === 'href' ? '/i/chat/test' : label, querySelector: () => row };
+}
+const scan = context.XWorkspaceUnread.scan;
+const rows = scan({ querySelectorAll: () => [link('Research, Primary bot, unread', 'Research')] }, origin);
+assert.equal(rows[0].bot, true); assert.equal(rows[0].unread, true); assert.equal(rows[0].name, 'Research');
+assert.equal(scan({ querySelectorAll: () => [link('Regular person', 'Alex')] }, origin)[0].bot, false);
+let known = bots.reconcile(new Map(), rows);
+known = bots.reconcile(known, []); assert.equal(known.size, 1, 'Keep virtualized bot rows');
+known = bots.reconcile(known, [{ ...rows[0], unread: false }]); assert.equal(known.get('/i/chat/test').unread, false, 'Explicit read clears bot unread');
+known = bots.reconcile(known, [{ ...rows[0], bot: false }]); assert.equal(known.size, 0, 'Remove a rendered row that no longer has the label');
+const unsafe = [{ href: '/i/chat/a', name: 'Bot', unread: true, message: 'private' }, { href: 'https://evil.test/i/chat/x', name: 'bad' }];
+const normalized = bots.normalize(unsafe, origin);
+assert.equal(normalized.length, 1); assert.equal(Object.keys(normalized[0]).sort().join(','), 'avatar,href,name,unread');
+assert.equal(bots.normalize(null, origin).length, 0);
+const pinned = bots.pins(unsafe, origin);
+assert.equal(Object.keys(pinned[0]).sort().join(','), 'avatar,href,name');
+const sessions = bots.sessions([{ href: '/i/chat/a', name: 'Updated', unread: false }, { href: '/i/chat/b', name: 'Unread bot', unread: true }], [...pinned, { href: '/i/chat/missing', name: 'Saved' }]);
+assert.equal(sessions[0].name, 'Updated'); assert.equal(sessions[0].pinned, true); assert.equal(sessions[0].unread, false);
+assert.equal(sessions[1].observed, false); assert.equal(sessions[1].unread, undefined, 'Do not invent read state for saved pins');
+assert.equal(sessions[2].href, '/i/chat/b');
+console.log('PASS: Primary bot detection, scanning, virtual rows, read updates, safe metadata, persistent pins and session ordering');

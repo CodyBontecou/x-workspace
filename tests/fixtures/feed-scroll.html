@@ -1,0 +1,67 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Feed scroll regression</title>
+<style>
+  /* X's page-level scroll setup, independent of the extension. */
+  html { overflow-y: scroll; }
+  body { margin: 0; }
+  #app { display: flex; }
+  article { height: 300px; border-bottom: 1px solid #ccc; }
+  output { position: fixed; top: 0; left: 0; background: white; z-index: 100; }
+</style>
+<link rel="stylesheet" href="../../layout.css">
+<output>Running…</output>
+<div id="app">
+  <header role="banner">Navigation</header>
+  <main role="main"><div><div data-testid="primaryColumn"><section aria-label="Timeline"></section></div></div></main>
+</div>
+<script>
+  history.scrollRestoration = 'manual';
+  const timeline = document.querySelector('section');
+  const output = document.querySelector('output');
+  const nextFrame = () => new Promise(resolve => setTimeout(resolve, 100));
+  const append = () => {
+    for (let i = 0; i < 10; i++) {
+      const article = document.createElement('article');
+      article.textContent = `Post ${timeline.children.length + 1}`;
+      timeline.append(article);
+    }
+  };
+  let loads = 0;
+  let loadMore;
+  window.addEventListener('scroll', () => loadMore?.(window));
+  document.body.addEventListener('scroll', () => loadMore?.(document.body));
+  // Virtualized feeds bind to their nearest CSS scroll ancestor. An unbounded
+  // overflow:auto body is detected as one even though the document still scrolls.
+  function scrollParent(element) {
+    for (let parent = element.parentElement; parent && parent !== document.documentElement; parent = parent.parentElement) {
+      if (/(auto|scroll|hidden)/.test(getComputedStyle(parent).overflowY)) return parent;
+    }
+    return window;
+  }
+  (async () => {
+    await nextFrame();
+    const results = [];
+    for (const active of [false, true]) {
+      document.documentElement.classList.toggle('xw-active', active);
+      timeline.replaceChildren(); loads = 0;
+      window.scrollTo(0, 0); append(); await nextFrame();
+      const target = scrollParent(timeline);
+      loadMore = source => {
+        if (source === target && window.scrollY + innerHeight >= document.documentElement.scrollHeight - 100) {
+          loads++; append();
+        }
+      };
+      for (let batch = 0; batch < 3; batch++) {
+        window.scrollTo(0, document.documentElement.scrollHeight);
+        await nextFrame();
+      }
+      results.push({ active, loads, posts: timeline.children.length, scrollY: window.scrollY,
+        bodyOverflowY: getComputedStyle(document.body).overflowY, scrollTarget: target === window ? 'window' : target.tagName });
+      loadMore = undefined;
+    }
+    const pass = results.every(result => result.loads === 3 && result.posts === 40 && result.scrollY > 0);
+    output.textContent = `${pass ? 'PASS' : 'FAIL'}: ${JSON.stringify(results)}`;
+    output.dataset.result = pass ? 'pass' : 'fail';
+  })();
+</script>

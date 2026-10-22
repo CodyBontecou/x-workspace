@@ -1,17 +1,52 @@
 {
   "manifest_version": 3,
   "name": "X Workspace",
-  "version": "0.2.2",
-  "description": "A focused X feed with a resizable native chat pane.",
-  "permissions": ["storage", "declarativeNetRequestWithHostAccess"],
-  "host_permissions": ["https://x.com/*"],
-  "background": { "service_worker": "background.js" },
-  "action": { "default_popup": "popup.html", "default_title": "X Workspace" },
-  "content_scripts": [{
-    "matches": ["https://x.com/*"],
-    "js": ["unread.js", "content.js"],
-    "css": ["layout.css"],
-    "all_frames": true,
-    "run_at": "document_idle"
-  }]
+  "version": "0.6.0",
+  "description": "Animated bot conversations in a minimal sidebar, with message pills and independent drafts.",
+  "permissions": [
+    "storage",
+    "declarativeNetRequestWithHostAccess"
+  ],
+  "host_permissions": [
+    "https://x.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "X Workspace"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://x.com/*"
+      ],
+      "js": [
+        "avatars.js",
+        "unread.js",
+        "bots.js",
+        "chat-bridge.js",
+        "chat-transport.js",
+        "navigation.js",
+        "floating-bots.js",
+        "content.js"
+      ],
+      "css": [
+        "layout.css"
+      ],
+      "all_frames": true,
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://x.com/*"
+      ],
+      "js": [
+        "navigation-main.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_idle"
+    }
+  ]
 }

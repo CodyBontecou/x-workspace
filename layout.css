@@ -1,6 +1,8 @@
 /* X owns all feed/chat content. These rules only change the outer shell. */
 html.xw-active { --xw-rail: 76px; }
-html.xw-active body { overflow-x: hidden; }
+/* Clip horizontal overflow without creating a body scroll container. `hidden`
+   makes overflow-y compute to auto, confusing virtualized feed scroll tracking. */
+html.xw-active body { overflow-x: clip; }
 html.xw-active header[role="banner"] {
   position: fixed !important; inset: 0 auto 0 0 !important;
   width: var(--xw-rail) !important; z-index: 20 !important;
