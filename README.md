@@ -55,6 +55,8 @@ Authenticated X responses can send `X-Frame-Options: deny`. The background worke
 
 There are no analytics, backend, API credentials, or cookie-reading permissions. Message text and custom drafts stay in memory in the current tab; they are not written to extension storage or sent to a separate backend. Messages you submit are delivered through X to the chosen bot. X itself manages its native drafts and history.
 
+Read the full [privacy policy](PRIVACY.md).
+
 Legacy pins save only conversation paths, titles, and avatar URLs or sanitized SVG geometry. Conversation preferences save paths and expanded/collapsed state for up to 100 bots. Older saved window arrangements may still be present but their coordinates are unused. Pins and preferences are shared across X accounts in the same browser profile. Native bot avatars are static shape/color snapshots; only allowlisted drawing elements and local references are copied. Scripts, styles, event handlers, and external SVG references are excluded. Image avatars are restricted to HTTPS X image CDN URLs.
 
 ## Development and testing
@@ -95,7 +97,13 @@ Native bot routes, SVG avatars, message-row IDs, message alignment, and the text
 
 If bots are missing or a chat stays on connecting, use **Open X inbox** / **Open in X** to check sign-in and unlock chat, then refresh bots or reconnect. Reload the extension before refreshing X after source updates. Unseen older sessions and messages cannot appear until X renders them.
 
-Each bot you have opened keeps a native X connection until the page reloads or the workspace is disabled, including while collapsed, so replies can update unread dots. Resource use grows with the number of connected bots.
+Each bot you have opened keeps a native X connection until the page reloads or the workspace is disabled, including while collapsed, so replies can update unread dots. Resource use grows with the number of connected bots. The connecting notice appears during the initial connection or an explicit reconnect; temporary composer changes do not restart it. Identical normalized connection/message states do not trigger another UI update.
+
+## Store packaging
+
+Run `python3 scripts/package.py` to create `dist/x-workspace-0.6.0.zip` and its SHA256 checksum. The ZIP includes only production extension files. A separate store kit includes the package, listing copy, privacy policy, icons, promotional image, and two 1280×800 screenshots with demo conversations.
+
+The original vector icon is in `icons/icon.svg`. To regenerate its PNG sizes and promotional artwork, run `python3 scripts/generate-store-assets.py` with Pillow installed. Store screenshot previews use the actual UI module in `store/preview.html`, served by the local fixture server, without contacting X. See [store listing and submission status](store/listing.md).
 
 ## License
 

@@ -306,7 +306,8 @@
           if (row.role !== 'user') continue;
           for (const [id, pending] of session.pending) if (pending.text === row.text && !pending.baseline.has(row.id)) { clearTimeout(pending.timer); session.pending.delete(id); if (session.sendingId === id) session.sendingId = null; break; }
         }
-        notice.textContent = state.error || (!state.ready ? 'Connecting to X…' : '');
+        const status = state.error || (state.connecting ? 'Connecting to X…' : '');
+        if (notice.textContent !== status) notice.textContent = status;
         updateControls(); renderMessages(session); renderRail();
       }, result => {
         const pending = session.pending.get(result.id); if (!pending) return;
