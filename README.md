@@ -18,6 +18,7 @@ To update, pull the latest source, click **Reload** on the extension in `chrome:
 ## Features
 
 - Compact navigation and a centered feed.
+- Opening, closing, and resizing chat leaves the feed's position and width unchanged.
 - Native X Chat in a right pane, with independent scrolling.
 - Resize the pane from 400 to 640 px, subject to available space.
 - Collapse and reopen chat while preserving the embedded conversation.
@@ -25,7 +26,7 @@ To update, pull the latest source, click **Reload** on the extension in `chrome:
 - Unread conversation avatars along the top rim of **Open chat**, with three visible avatars and an overflow count. Click an avatar to open that conversation. Missing images use initials.
 - Keyboard resizing: focus the divider and use arrow keys, Home, or End.
 - Toolbar popup to enable or disable the layout.
-- Chat overlays the feed below 1100 px rather than squeezing both columns.
+- Chat fits in the right-hand gutter beside the centered feed when there is room. If the gutter is narrower than X Chat's 400 px minimum, the pane overlays part of the feed instead of moving it.
 
 Standalone chat and sign-in pages retain X's normal layout.
 
@@ -74,7 +75,7 @@ Unread unit checks cover state reconciliation, virtualized rows, deduplication, 
 
 The layout controls were checked in a local browser fixture, and native chat loading was confirmed by a user running version 0.1.1 on October 22, 2026. Message sending, calls, attachments, and every X account configuration have not been exhaustively tested.
 
-For a manual check, load the unpacked extension, confirm your inbox appears, open a conversation, resize and collapse the pane, and navigate around X while checking that the feed and chat remain usable.
+For a manual check, load the unpacked extension, confirm your inbox appears, open a conversation, resize and collapse the pane, and navigate around X while checking that the feed and chat remain usable. Confirm the feed stays in the same place while toggling and resizing chat; check both a wide window with a full right gutter and a narrow window where chat must overlay the feed.
 
 ## Troubleshooting
 

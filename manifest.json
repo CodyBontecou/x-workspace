@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "X Workspace",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A focused X feed with a resizable native chat pane.",
   "permissions": ["storage", "declarativeNetRequestWithHostAccess"],
   "host_permissions": ["https://x.com/*"],

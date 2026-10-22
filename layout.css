@@ -1,5 +1,5 @@
 /* X owns all feed/chat content. These rules only change the outer shell. */
-html.xw-active { --xw-rail: 76px; --xw-pane: 440px; }
+html.xw-active { --xw-rail: 76px; }
 html.xw-active body { overflow-x: hidden; }
 html.xw-active header[role="banner"] {
   position: fixed !important; inset: 0 auto 0 0 !important;
@@ -13,7 +13,8 @@ html.xw-active [data-testid="SideNav_AccountSwitcher_Button"] > div:not(:first-c
 html.xw-active [data-testid="SideNav_NewTweet_Button"] { width: 50px !important; min-width: 50px !important; }
 html.xw-active main[role="main"] {
   margin-left: var(--xw-rail) !important;
-  width: calc(100vw - var(--xw-rail) - var(--xw-pane)) !important;
+  /* Chat floats in the right gutter; it never changes the feed's containing block. */
+  width: calc(100% - var(--xw-rail)) !important;
   max-width: none !important; flex: none !important;
   display: flex !important; flex-direction: column !important; align-items: center !important;
 }

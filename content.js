@@ -133,7 +133,9 @@
   const grip = shadow.querySelector('.grip');
   const cover = shadow.querySelector('.cover');
   const save = () => chrome.storage.local.set(settings);
-  const availableWidth = () => Math.max(400, Math.min(640, innerWidth - 676));
+  // The 600px feed stays centered in the area to the right of the 76px rail.
+  // Fit chat into its right gutter where possible, preserving X's 400px minimum.
+  const availableWidth = () => Math.max(400, Math.min(640, Math.floor((root.clientWidth - 76 - 600) / 2)));
   const width = () => Math.max(400, Math.min(availableWidth(), Number(settings.width) || 440));
   const excluded = () => /^\/i\/(chat|flow|jf)(\/|$)/.test(location.pathname);
   async function loadChat() {
@@ -169,17 +171,16 @@
   }
   function render() {
     const active = settings.enabled && !excluded();
-    const compact = innerWidth < 1100;
     const closed = settings.collapsed;
     root.classList.toggle('xw-active', active);
-    root.style.setProperty('--xw-pane', active && !closed && !compact ? `${width()}px` : '0px');
     host.hidden = !active;
     pane.classList.toggle('collapsed', closed);
     pane.inert = closed;
     pane.setAttribute('aria-hidden', String(closed));
     launcher.hidden = !closed;
-    host.style.setProperty('--xw-pane', `${compact ? Math.min(width(), innerWidth - 76) : width()}px`);
+    host.style.setProperty('--xw-pane', `${Math.min(width(), Math.max(0, root.clientWidth - 76))}px`);
     grip.setAttribute('aria-valuenow', String(width()));
+    grip.setAttribute('aria-valuemax', String(availableWidth()));
     if (!active && (frame || loading)) {
       ++loadGeneration; loading = false; clearTimeout(timeout);
       frame?.remove(); frame = undefined;
