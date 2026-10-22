@@ -67,8 +67,13 @@
       * { box-sizing: border-box; } [hidden] { display: none !important; }
       button,a { font: inherit; color: inherit; } button { cursor: pointer; }
       button:focus-visible,a:focus-visible,[role=separator]:focus-visible { outline: 2px solid #1d9bf0; outline-offset: -3px; }
-      .pane { position: fixed; inset: 0 0 0 auto; width: var(--xw-pane); z-index: 30; background: #000; border-left: 1px solid #2f3336; display: flex; flex-direction: column; }
-      .pane.collapsed { visibility: hidden; pointer-events: none; }
+      .pane { position: fixed; inset: 0 0 0 auto; width: var(--xw-pane); z-index: 30; background: #000; border-left: 1px solid #2f3336; display: flex; flex-direction: column; transform: translateX(0); transition: transform 240ms cubic-bezier(0.32, 0.72, 0, 1), visibility 0s linear; }
+      .pane.collapsed { transform: translateX(calc(100% + 8px)); visibility: hidden; pointer-events: none; transition-delay: 0s, 240ms; }
+      .pane.instant { transition: none !important; }
+      @media (prefers-reduced-motion: reduce) {
+        .pane { transform: none; opacity: 1; transition: opacity 120ms cubic-bezier(0.23, 1, 0.32, 1), visibility 0s linear; }
+        .pane.collapsed { transform: none; opacity: 0; transition-delay: 0s, 120ms; }
+      }
       .bar { flex: 0 0 46px; display: flex; align-items: center; gap: 6px; padding: 0 12px; border-bottom: 1px solid #2f3336; }
       .title { font-weight: 650; flex: 1; } .bar button,.bar a { border: 0; background: transparent; border-radius: 6px; padding: 7px 9px; text-decoration: none; }
       .bar button:hover,.bar a:hover { background: #181818; }
@@ -89,7 +94,7 @@
       @media (hover: hover) and (pointer: fine) { .avatar:hover { z-index: 2; box-shadow: 0 0 0 2px #1d9bf0; } .open-chat:hover { background: #dce2e5; } }
       .cover { position: fixed; inset: 0; z-index: 31; cursor: col-resize; }
     </style>
-    <aside class="pane" aria-label="X chat workspace">
+    <aside class="pane instant" aria-label="X chat workspace">
       <div class="grip" role="separator" aria-label="Resize chat pane" aria-orientation="vertical" tabindex="0" aria-valuemin="400" aria-valuemax="640"></div>
       <div class="bar"><span class="title">Chat workspace</span><button class="reload" aria-label="Reload chat" title="Reload chat">↻</button><a href="https://x.com/i/chat" target="_blank" rel="noopener noreferrer" aria-label="Open chat in a new tab" title="Open in new tab">↗</a><button class="collapse" aria-label="Collapse chat" title="Collapse chat">›</button></div>
       <div class="body"><div class="status" role="status">Loading X Chat…</div></div>
@@ -116,8 +121,8 @@
         img.addEventListener('error', () => { button.textContent = initials || '?'; }, { once: true });
         button.replaceChildren(img);
       }
-      button.addEventListener('click', () => {
-        toggle(false);
+      button.addEventListener('click', event => {
+        toggle(false, event);
         frame?.contentWindow.postMessage({ type: 'xw-open-conversation', href: entry.href }, location.origin);
       });
       avatars.append(button);
@@ -126,7 +131,7 @@
       const more = document.createElement('button'); more.className = 'avatar more';
       more.textContent = `+${unreadEntries.length - 3}`;
       more.setAttribute('aria-label', `${unreadEntries.length - 3} more unread conversations`);
-      more.addEventListener('click', () => toggle(false)); avatars.append(more);
+      more.addEventListener('click', event => toggle(false, event)); avatars.append(more);
     }
   }
   const status = shadow.querySelector('.status');
@@ -189,9 +194,16 @@
     }
     if (active && !frame && !loading) loadChat();
   }
-  function toggle(collapsed) { settings.collapsed = collapsed; render(); save(); }
-  shadow.querySelector('.collapse').addEventListener('click', () => toggle(true));
-  openChat.addEventListener('click', () => toggle(false));
+  function toggle(collapsed, event) {
+    // Initial mount and keyboard activation stay immediate. Pointer toggles use
+    // interruptible CSS transitions, including a reversal partway through exit.
+    pane.classList.toggle('instant', event?.detail === 0);
+    settings.collapsed = collapsed; render(); save();
+    if (collapsed) openChat.focus({ preventScroll: true });
+    else shadow.querySelector('.collapse').focus({ preventScroll: true });
+  }
+  shadow.querySelector('.collapse').addEventListener('click', event => toggle(true, event));
+  openChat.addEventListener('click', event => toggle(false, event));
   shadow.querySelector('.reload').addEventListener('click', loadChat);
   window.addEventListener('message', event => {
     if (event.origin !== location.origin || event.source !== frame?.contentWindow) return;

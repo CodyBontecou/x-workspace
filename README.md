@@ -19,6 +19,7 @@ To update, pull the latest source, click **Reload** on the extension in `chrome:
 
 - Compact navigation and a centered feed.
 - Opening, closing, and resizing chat leaves the feed's position and width unchanged.
+- Chat slides in and out from the right in 240 ms. Rapid toggles reverse smoothly; reduced-motion users get a short fade, and keyboard activation is immediate.
 - Native X Chat in a right pane, with independent scrolling.
 - Resize the pane from 400 to 640 px, subject to available space.
 - Collapse and reopen chat while preserving the embedded conversation.
