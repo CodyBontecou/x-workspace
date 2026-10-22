@@ -103,7 +103,7 @@ Each bot you have opened keeps a native X connection until the page reloads or t
 
 Run `python3 scripts/package.py` to create `dist/x-workspace-0.6.0.zip` and its SHA256 checksum. The ZIP includes only production extension files. A separate store kit includes the package, listing copy, privacy policy, icons, promotional image, and two 1280×800 screenshots with demo conversations.
 
-The original vector icon is in `icons/icon.svg`. To regenerate its PNG sizes and promotional artwork, run `python3 scripts/generate-store-assets.py` with Pillow installed. Store screenshot previews use the actual UI module in `store/preview.html`, served by the local fixture server, without contacting X. See [store listing and submission status](store/listing.md).
+The current generated bot icon master and its prompt are in `icons/bot/`. Run `python3 scripts/export-bot-icons.py` with Pillow installed to export 16, 32, 48, 128, 256, and 512 pixel PNGs. The manifest uses this icon family. The earlier vector design remains in `icons/icon.svg`; `scripts/generate-store-assets.py` regenerates that earlier family and the promotional artwork. Store screenshot previews use the actual UI module in `store/preview.html`, served by the local fixture server, without contacting X. See [store listing and submission status](store/listing.md).
 
 ## License
 

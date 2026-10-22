@@ -33,7 +33,7 @@ digest = hashlib.sha256(package.read_bytes()).hexdigest()
 package.with_suffix('.zip.sha256').write_text(f'{digest}  {package.name}\n')
 print(f'{package}\n{len(files)} production files; SHA256 {digest}')
 
-assets = ['store/listing.md', 'store/promo-440x280.png', 'store/screenshot-bot-list.jpg', 'store/screenshot-focused-chat.jpg', 'PRIVACY.md', 'icons/icon-128.png']
+assets = ['store/listing.md', 'store/promo-440x280.png', 'store/screenshot-bot-list.jpg', 'store/screenshot-focused-chat.jpg', 'PRIVACY.md', manifest['icons']['128']]
 if all((ROOT / filename).is_file() for filename in assets):
     kit = out / f'x-workspace-{manifest["version"]}-store-kit.zip'
     with zipfile.ZipFile(kit, 'w', compression=zipfile.ZIP_DEFLATED) as archive:
