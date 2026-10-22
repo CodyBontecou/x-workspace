@@ -32,7 +32,7 @@ Keep your Grok bots close while you browse X. X Workspace adds a minimal bot rai
 
 Sign in to X and unlock X Chat first. You need existing Grok bot conversations in your X account; this extension does not create bots or provide a Grok subscription. Only sessions rendered by X can be discovered. Opening a conversation can update its native read state. Unread dots indicate newly observed messages, rather than a guaranteed server-side count.
 
-Custom chat supports text messages and links. Open the native conversation for attachments, voice, search, and other rich features. Chats appear on x.com; following a link to an external site leaves the workspace. Drafts and message snapshots are held in memory and do not survive a full reload.
+Custom chat supports text messages, links, and file attachments through the paperclip, drag-and-drop, or image paste. Image attachments appear inline and open in a larger preview when clicked. Open the native conversation for voice, search, and other rich features. Chats appear on x.com; following a link to an external site leaves the workspace. Recent observed messages are cached locally and appear immediately after refresh while X reconnects. Image previews come from the live connection and are not cached. Custom drafts, selected files, and unconfirmed outgoing messages do not survive a full reload.
 
 No developer backend or analytics. Messages are sent through X to the bot you select. X's own privacy policy and account requirements apply. X Workspace is independent of and not endorsed by X or xAI.
 
@@ -40,7 +40,7 @@ No developer backend or analytics. Messages are sent through X to the bot you se
 
 Single purpose: Manage existing X Grok bot conversations in a focused sidebar on x.com.
 
-`storage`: Save workspace enabled state, pinned bot metadata, and the focused bot locally. Message text and custom drafts are not written to extension storage.
+`storage`: Save workspace enabled state, pinned bot metadata, and the focused bot locally. Recent observed message text and validated links are cached in local extension storage (up to 100 messages and about 80 KB per conversation, 20 conversations, seven-day expiry). Custom drafts and unconfirmed outgoing messages stay in memory. The cache is shared within the browser profile and is not synchronized.
 
 `https://x.com/*`: Discover bot rows and avatars, read native chat messages, display the workspace, and submit messages that the user chooses to send through X's own authenticated interface. No access to unrelated websites is requested.
 

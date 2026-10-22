@@ -32,6 +32,7 @@
         "bots.js",
         "chat-bridge.js",
         "chat-transport.js",
+        "message-cache.js",
         "navigation.js",
         "floating-bots.js",
         "content.js"

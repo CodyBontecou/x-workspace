@@ -22,6 +22,7 @@
         publish(event.data.ready === true, globalThis.XWorkspaceChatBridge.normalizeMessages(event.data.messages));
       }
       if (event.data.type === 'xw-bot-send-result') onResult(event.data);
+      if (event.data.type === 'xw-bot-send-progress') onResult(event.data);
     }
     window.addEventListener('message', receive);
     async function load() {
@@ -41,7 +42,7 @@
     }
     load();
     return {
-      send(id, text) { frame?.contentWindow.postMessage({ type: 'xw-bot-send', href, id, text }, location.origin); },
+      send(id, text, files = []) { frame?.contentWindow.postMessage({ type: 'xw-bot-send', href, id, text, files }, location.origin); },
       history() { frame?.contentWindow.postMessage({ type: 'xw-bot-history', href }, location.origin); },
       reconnect: load,
       destroy() { destroyed = true; ++generation; clearTimeout(timer); window.removeEventListener('message', receive); frame?.remove(); }

@@ -12,7 +12,7 @@ const sendButton = { disabled: false, click() { assert.equal(inputEvents, submit
 const form = { querySelector: selector => selector === '[data-testid="dm-composer-send-button"]' ? sendButton : null, requestSubmit() { formSubmissions++; } };
 input.closest = () => form;
 const root = { querySelector: selector => selector.includes('textarea') ? input : { scrollTo() {} } };
-const context = vm.createContext({ parent, location: { origin: 'https://x.com', pathname: '/i/chat/bots/a' }, Event, URL, setTimeout,
+const context = vm.createContext({ parent, location: { origin: 'https://x.com', pathname: '/i/chat/bots/a' }, Event, URL, Blob, setTimeout,
   window: { addEventListener: (type, fn) => handlers.push(fn) } });
 vm.runInContext(await readFile(new URL('../chat-bridge.js', import.meta.url), 'utf8'), context);
 const { normalizeMessages, mergeMessages, scan, connect, messageParts } = context.XWorkspaceChatBridge;
@@ -54,6 +54,30 @@ const unsafeLinks = normalizeMessages([{ id: 'unsafe', text: 'abc', links: [
 assert.equal(unsafeLinks.links.length, 1); assert.equal(unsafeLinks.links[0].href, 'https://example.com/');
 const updated = mergeMessages([linked], [{ ...linked, links: [{ ...linked.links[0], href: 'https://x.com/updated' }] }]);
 assert.equal(updated[0].links[0].href, 'https://x.com/updated');
+const imageBubble = el('DIV', [el('IMG', [], {src:'blob:https://x.com/test-image',alt:'icon.png'})]);
+const imageRow = scan({querySelectorAll:()=>[{getAttribute:()=> 'image',querySelector:selector=>selector==='.rounded-chat'?imageBubble:null}]})[0];
+assert.equal(imageRow.text,'[icon.png]'); assert.equal(imageRow.images[0].src,'blob:https://x.com/test-image');
+const media = normalizeMessages([{id:'media',text:'',images:[
+  {src:'blob:https://x.com/local',alt:'Local'}, {src:'https://pbs.twimg.com/media/a.png',alt:'Remote'},
+  {src:'blob:https://evil.test/private',alt:'Foreign blob'}, {src:'https://evil.test/tracker.png'},
+  {src:'data:image/svg+xml,<svg/>'}, {src:'javascript:alert(1)'}
+]}])[0];
+assert.equal(media.images.length,2); assert.match(media.text,/Local/);
+assert.equal(normalizeMessages([{id:'unsafe-image',text:'',images:[{src:'https://evil.test/x.png'}]}]).length,0);
+const changedImage = mergeMessages([imageRow],[{...imageRow,images:[{src:'blob:https://x.com/reloaded',alt:'icon.png'}]}]);
+assert.equal(changedImage[0].images[0].src,'blob:https://x.com/reloaded','Fresh native image URLs replace expired ones');
+const imageBlobs = [];
+context.atob = atob;
+context.URL = class extends URL {
+  static createObjectURL(blob) { imageBlobs.push(blob); return `blob:https://x.com/decrypted-${imageBlobs.length}`; }
+  static revokeObjectURL() {}
+};
+const dataImage = el('DIV',[el('IMG',[],{src:'data:image/png;base64,aW1hZ2U=',alt:'embedded.png'})]);
+const dataRoot = {querySelectorAll:()=>[{getAttribute:()=> 'embedded',querySelector:selector=>selector==='.rounded-chat'?dataImage:null}]};
+assert.equal(scan(dataRoot)[0].images[0].src,'blob:https://x.com/decrypted-1');
+assert.equal(scan(dataRoot)[0].images[0].src,'blob:https://x.com/decrypted-1');
+assert.equal(imageBlobs.length,1,'Decode each mounted native image only once');
+assert.equal(imageBlobs[0].type,'image/png'); assert.equal(imageBlobs[0].size,5);
 connect(() => root, () => {});
 const receive = handlers[0];
 const event = (id, text, overrides = {}) => ({ source: parent, origin: 'https://x.com', data: { type: 'xw-bot-send', href: '/i/chat/bots/a', id, text }, ...overrides });

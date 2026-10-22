@@ -21,11 +21,13 @@ Sign in to X in the same browser profile. If X needs your chat passcode, unlock 
 - Incoming messages use dark floating pills; outgoing messages use blue pills. History scrolls above the composer, which stays at the bottom of the focused chat.
 - The full list retains its short fade/slide transition. Keyboard activation is instant; reduced motion retains a gentle opacity change.
 - Each bot has its own composer and in-memory draft. Collapsing a conversation keeps its connection, history, and draft alive. Replies received while its conversation or the full rail is collapsed add an unread dot; opening the conversation clears the dot.
-- The focused bot is saved locally and restored after refresh as bots are discovered. Older multi-chat layouts restore the most recently opened available bot; old floating-window coordinates are ignored. The full rail starts hidden after refresh. Drafts and messages are not saved across page reloads.
+- The focused bot is saved locally and restored after refresh as bots are discovered. Older multi-chat layouts restore the most recently opened available bot; old floating-window coordinates are ignored. The full rail starts hidden after refresh. Recent message history and bot metadata are cached locally so conversations appear immediately after refresh while X reconnects. Drafts are not saved across page reloads.
 - Enter sends; Shift+Enter adds a line. The **⋯** menu beside each composer contains **Load earlier messages**, **Open in X**, and **Reconnect**.
+- Use the paperclip, drop files onto the composer, or paste an image to attach files. Image thumbnails and filenames appear above the draft, with a remove button on each. Each bot keeps its own attachment draft. You can send files with or without text. Up to six files are allowed: 25 MB each for images/documents/audio, 200 MB for video, and 200 MB total. X may reject unsupported formats. Files stay in tab memory until Send, then upload through X's native attachment control before submission. Upload failures preserve your local draft; review X's draft or reconnect before retrying. Reloading discards unsent files.
 - Native linked text, post links, and @mentions retain their destinations. Plain HTTP/HTTPS and www addresses are clickable too. Normal clicks open in the current tab. X links navigate through X's router, preserving expanded chats, message history, connections, and unsent drafts; Back and Forward work normally. External links replace the X page, so the sidebar is unavailable until you return to X. Modifier and middle clicks retain normal browser behavior.
 - **Load earlier messages** asks the hidden X session to load older history. Up to 250 observed messages are retained per chat as X virtualizes rows away.
-- **Open in X** is available for attachments, voice, search, routines, rich media, or connection troubleshooting. The custom composer supports text messages; native interactive cards appear as plain text activity.
+- Image attachments render inline with their filenames. Click an image to open a larger preview; close it with the close button or Escape. Previews come from the live X connection and reload when X reconnects; cached history keeps filename labels only. Unavailable or unsupported images retain their text labels.
+- **Open in X** is available for voice, search, routines, other rich media, or connection troubleshooting. The custom composer supports text and file attachments; native interactive cards appear as plain text activity.
 - **Reconnect** reconnects that bot's X session. If no bots have loaded, expanding the rail retries discovery and offers a link to your full X inbox.
 - The feed keeps its centered layout. The rail has no panel background or search field. Previously saved pins still sort first.
 
@@ -49,11 +51,11 @@ Authenticated X responses can send `X-Frame-Options: deny`. The background worke
 
 | Permission | Purpose |
 | --- | --- |
-| `storage` | Save enabled state, pinned session metadata, and expanded conversation state locally. |
+| `storage` | Save settings, bot metadata, conversation state, and recent message history locally. |
 | Access on `https://x.com/*` | Adjust the feed, discover bots, and connect to native X Chat. |
 | `declarativeNetRequestWithHostAccess` | Install the scoped chat framing rule. |
 
-There are no analytics, backend, API credentials, or cookie-reading permissions. Message text and custom drafts stay in memory in the current tab; they are not written to extension storage or sent to a separate backend. Messages you submit are delivered through X to the chosen bot. X itself manages its native drafts and history.
+There are no analytics, backend, API credentials, or cookie-reading permissions. Recent observed message text and validated links are cached in local extension storage; custom drafts and unconfirmed outgoing messages stay in the current tab’s memory. The cache retains up to 100 messages and about 80 KB per conversation for the 20 most recently updated conversations, expires after seven days, and is not synchronized or sent to a separate backend. Cached conversations reconnect quietly in the background; connection errors remain visible, and sending stays disabled until the live connection is ready. Message caches, like saved preferences, are shared within the browser profile. Messages you submit are delivered through X to the chosen bot. X itself manages its native drafts and history.
 
 Read the full [privacy policy](PRIVACY.md).
 
@@ -70,10 +72,12 @@ node tests/bots.test.mjs
 node tests/inbox-markup.test.mjs
 node tests/chat-bridge.test.mjs
 node tests/chat-transport.test.mjs
+node tests/message-cache.test.mjs
 node tests/navigation.test.mjs
 node --check avatars.js
 node --check chat-bridge.js
 node --check chat-transport.js
+node --check message-cache.js
 node --check floating-bots.js
 node --check navigation.js
 node --check navigation-main.js
@@ -81,7 +85,7 @@ node --check content.js
 node --check background.js
 ```
 
-Tests cover framing scope and cleanup, bot detection, SVG sanitization, virtualized message merging, author alignment, native link labels and destinations, URL detection and unsafe-link rejection, safe metadata, per-conversation/frame/origin isolation, draft protection, native input/submission, duplicate request prevention, and connection cancellation/teardown.
+Tests cover framing scope and cleanup, bot detection, SVG sanitization, virtualized message merging, author alignment, native link labels and destinations, URL detection and unsafe-link rejection, safe metadata, per-conversation/frame/origin isolation, draft protection, native input/submission, duplicate request prevention, connection cancellation/teardown, message cache restoration and reconciliation, cache size/expiry limits, and storage failure handling.
 
 For a local browser fixture, start:
 

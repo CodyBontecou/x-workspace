@@ -34,6 +34,10 @@ receive({...event,data:{...event.data,messages:[{id:'a',text:'Hello updated',rol
 assert.equal(states.at(-1).messages[0].text,'Hello updated','Streaming edits must still update');
 assert.equal(states.at(-1).connecting,false);
 a.send('test','Hi'); assert.equal(frame.sent.data.href,'/i/chat/bots/a'); assert.equal(frame.sent.origin,'https://x.com');
+const attachments = [new File(['test'], 'notes.txt', {type:'text/plain'})];
+a.send('with-file', 'Read this', attachments); assert.equal(frame.sent.data.files, attachments);
+receive({...event,data:{type:'xw-bot-send-progress',href:'/i/chat/bots/a',id:'with-file',status:'Uploading attachments…'}});
+assert.equal(results.pop().type,'xw-bot-send-progress');
 receive({...event,data:{type:'xw-bot-send-result',href:'/i/chat/bots/a',id:'test',ok:true}}); assert.equal(results.length,1);
 prepare={ok:true}; await a.reconnect();
 assert.equal(states.at(-1).connecting,true,'Explicit reconnect starts a new connection attempt');

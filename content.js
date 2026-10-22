@@ -83,7 +83,7 @@
   }
 
   let settings = { ...defaults };
-  let frame, ui, loading = false, generation = 0, keepWorkspace = false;
+  let frame, ui, messageCache, loading = false, generation = 0, keepWorkspace = false;
   const host = document.createElement('div'); host.id = 'x-workspace';
   const shadow = host.attachShadow({ mode: 'open' });
   const engines = document.createElement('div'); engines.className = 'engines'; engines.inert = true; engines.setAttribute('aria-hidden', 'true'); shadow.append(engines);
@@ -109,7 +109,7 @@
       chrome.runtime.sendMessage({ type: 'xw-release-chat' }).catch(() => {});
       return;
     }
-    if (!ui) ui = globalThis.XWorkspaceFloatingBots(shadow, { getSettings: () => settings, save, engines, reconnectInbox: loadInbox });
+    if (!ui) ui = globalThis.XWorkspaceFloatingBots(shadow, { getSettings: () => settings, save, engines, reconnectInbox: loadInbox, messageCache });
     ui.render();
     if (!frame && !loading) loadInbox();
   }
@@ -119,10 +119,14 @@
   });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
-    for (const key of Object.keys(defaults)) if (changes[key]) settings[key] = changes[key].newValue ?? defaults[key];
-    render();
+    let changed = false;
+    for (const key of Object.keys(defaults)) if (changes[key]) { settings[key] = changes[key].newValue ?? defaults[key]; changed = true; }
+    if (changed) render();
   });
-  chrome.storage.local.get(defaults).then(value => { settings = { ...defaults, ...value }; document.body.append(host); render(); });
+  Promise.all([chrome.storage.local.get(defaults), globalThis.XWorkspaceMessageCache(chrome.storage.local)]).then(([value, cache]) => {
+    settings = { ...defaults, ...value }; messageCache = cache; document.body.append(host); render();
+  });
+  window.addEventListener('pagehide', () => { void messageCache?.flush(); });
   let route = location.pathname;
   new MutationObserver(() => { if (route !== location.pathname) { route = location.pathname; render(); } }).observe(document.body, { childList: true, subtree: true });
 })();

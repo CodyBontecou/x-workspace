@@ -1,15 +1,15 @@
 (() => {
   'use strict';
-  globalThis.XWorkspaceFloatingBots = function (shadow, { getSettings, save, engines, reconnectInbox }) {
+  globalThis.XWorkspaceFloatingBots = function (shadow, { getSettings, save, engines, reconnectInbox, messageCache }) {
     const bridge = globalThis.XWorkspaceChatBridge;
     const sessions = new Map(), rows = new Map(), restored = new Set();
-    let entries = [], expanded = false, destroyed = false;
+    let entries = messageCache?.entries() || [], expanded = false, destroyed = false;
     const style = document.createElement('style');
     style.textContent = `
       :host { all: initial; font: 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color: #f3f1f7; color-scheme: dark; --ease-out: cubic-bezier(0.23,1,0.32,1); }
       :host([hidden]),[hidden] { display: none !important; } * { box-sizing: border-box; }
       button,textarea,a,summary { font: inherit; color: inherit; } button,summary { cursor: pointer; }
-      button:focus-visible,a:focus-visible,textarea:focus-visible,summary:focus-visible { outline: 2px solid #bca2ff; outline-offset: 3px; }
+      button:focus-visible,a:focus-visible,summary:focus-visible { outline: 2px solid #bca2ff; outline-offset: 3px; }
       button:disabled { cursor: default; opacity: .35; }
       .engines { position: fixed; left: -10000px; top: 0; width: 440px; height: 720px; visibility: hidden; pointer-events: none; }
       .engines iframe { position: absolute; inset: 0; width: 440px; height: 720px; border: 0; }
@@ -59,12 +59,34 @@
       .message.user { margin-left: auto; background: #3478f6; color: #fff; border-radius: 19px 19px 6px 19px; }
       .message.system { max-width: 100%; margin: 6px auto 12px; padding: 4px 10px; border-radius: 12px; background: #151419cc; color: #a69bad; text-align: center; font-size: 11px; box-shadow: none; }
       .message.pending { opacity: .6; } .pending-label { display: block; font-size: 10px; margin-top: 4px; }
+      .message.has-images { padding: 6px; max-width: 92%; }
+      .message.system.has-images { margin: 0 0 10px auto; background: #26242d; text-shadow: none; }
+      .message-image-button { display: block; max-width: 100%; padding: 0; margin: 0; border: 0; border-radius: 14px; overflow: hidden; background: #ffffff08; cursor: zoom-in; }
+      .message-image { display: block; width: auto; max-width: 100%; max-height: 240px; min-width: 64px; min-height: 64px; object-fit: contain; }
+      .message-image-label { display: block; margin: 5px 6px; color: inherit; font-size: 11px; overflow-wrap: anywhere; }
+      .message.has-images > .message-copy { display: block; padding: 4px 8px; }
+      .image-viewer { max-width: min(960px,calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 40px 12px 12px; border: 1px solid #ffffff30; border-radius: 18px; background: #17151d; color: #f3f1f7; }
+      .image-viewer::backdrop { background: #000b; }
+      .image-viewer img { display: block; max-width: 100%; max-height: calc(100vh - 110px); object-fit: contain; }
+      .image-viewer-close { position: absolute; right: 8px; top: 8px; width: 28px; height: 28px; border: 0; border-radius: 50%; background: #ffffff18; color: #fff; }
       .message a { color: #d4c6ff; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; } .message.user a { color: #fff; }
       .chat-notice { margin: 0; padding: 6px 10px; font-size: 11px; line-height: 1.5; color: #c8bad5; text-shadow: 0 1px 5px #000; } .chat-notice:empty { display: none; }
       .chat-compose { flex-shrink: 0; display: flex; align-items: flex-end; gap: 7px; padding: 8px 6px 0; }
-      .compose-wrap { min-width: 0; flex: 1; display: flex; align-items: flex-end; gap: 5px; padding: 7px 8px 7px 13px; border: 1px solid #ffffff20; border-radius: 22px; background: #1d1b23; }
-      .compose-wrap:focus-within { border-color: #ffffff45; }
-      .chat-input { min-width: 0; flex: 1; max-height: 96px; resize: none; border: 0; padding: 3px 0; background: transparent; color: #f3f1f7; line-height: 1.5; }
+      .compose-wrap { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 8px; padding: 9px 9px 9px 14px; border: 1px solid #ffffff20; border-radius: 22px; background: #1d1b23; }
+      .compose-line { display: flex; align-items: flex-end; gap: 10px; width: 100%; min-width: 0; }
+      .attach-button { display: grid; place-items: center; flex: 0 0 26px; width: 26px; height: 28px; padding: 4px; border: 0; border-radius: 50%; background: transparent; color: #b8afc6; }
+      .attach-button svg { width: 18px; height: 18px; }
+      .attachment-list { display: flex; gap: 7px; width: 100%; overflow-x: auto; padding: 3px 2px; scrollbar-width: thin; }
+      .attachment-card { position: relative; display: flex; align-items: center; gap: 7px; flex: 0 0 auto; max-width: 190px; padding: 6px 28px 6px 6px; border: 1px solid #ffffff20; border-radius: 12px; background: #ffffff08; }
+      .attachment-card img { width: 44px; height: 44px; border-radius: 7px; object-fit: cover; }
+      .attachment-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+      .attachment-remove { position: absolute; right: 3px; top: 3px; width: 22px; height: 22px; border: 0; border-radius: 50%; background: #ffffff10; color: #ded6e8; }
+      .compose-wrap.is-dragging { border-color: #bca2ff; background: #292333; }
+      .compose-wrap:focus-within { border-color: #bca2ff80; box-shadow: 0 0 0 1px #bca2ff18; }
+      .chat-input { min-width: 0; flex: 1; max-height: 120px; resize: none; border: 0; outline: none; padding: 4px 0; background: transparent; color: #f3f1f7; line-height: 1.5; overflow-wrap: anywhere; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #ffffff30 transparent; }
+      .chat-input::-webkit-scrollbar { width: 4px; }
+      .chat-input::-webkit-scrollbar-thumb { border-radius: 4px; background: #ffffff30; }
+      .chat-input::-webkit-scrollbar-track { background: transparent; }
       .chat-input::placeholder { color: #93899f; }
       .send-button { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; border: 0; border-radius: 50%; background: #3478f6; color: #fff; font-size: 19px; }
       .chat-actions { position: relative; flex-shrink: 0; margin-bottom: 8px; }
@@ -75,6 +97,12 @@
       @media (prefers-reduced-motion:reduce) { .chat-reveal { transition: opacity 100ms var(--ease-out); transform: none; } .dock-chips { transform: none; transition: opacity 100ms var(--ease-out),visibility 0s 100ms; } .dock-chips.is-visible { transform: none; transition-delay: 0s; } }
     `;
     shadow.append(style);
+    const imageViewer = document.createElement('dialog'); imageViewer.className = 'image-viewer'; imageViewer.setAttribute('aria-label', 'Image preview');
+    const viewerClose = document.createElement('button'); viewerClose.type = 'button'; viewerClose.className = 'image-viewer-close'; viewerClose.textContent = '×'; viewerClose.setAttribute('aria-label', 'Close image preview');
+    const viewerImage = document.createElement('img'); imageViewer.append(viewerClose, viewerImage); shadow.append(imageViewer);
+    viewerClose.addEventListener('click', () => imageViewer.close());
+    imageViewer.addEventListener('click', event => { if (event.target === imageViewer) imageViewer.close(); });
+    imageViewer.addEventListener('close', () => viewerImage.removeAttribute('src'));
     const dock = document.createElement('div'); dock.className = 'bot-dock';
     const list = document.createElement('div'); list.className = 'dock-chips'; list.setAttribute('aria-label', 'Your bots'); list.inert = true; list.setAttribute('aria-hidden', 'true');
     const content = document.createElement('div'); content.className = 'rail-content'; list.append(content);
@@ -172,7 +200,7 @@
     }
     function sizePanel(session) {
       if (!session.open) return;
-      session.input.style.height = 'auto'; session.input.style.height = `${Math.min(96, session.input.scrollHeight)}px`;
+      session.input.style.height = 'auto'; session.input.style.height = `${Math.min(120, session.input.scrollHeight)}px`;
       if (dock.classList.contains('is-focused')) { session.reveal.style.height = ''; return; }
       const height = session.el.getBoundingClientRect().height;
       reserveScrollSpace(session, height); session.reveal.style.height = `${height}px`;
@@ -273,10 +301,11 @@
       if (sessions.has(entry.href)) { setSessionOpen(sessions.get(entry.href), true, { animate }); return; }
       restored.add(entry.href);
       const row = rows.get(entry.href), reveal = row.reveal;
+      const cachedMessages = messageCache?.get(entry.href) || [];
       const el = document.createElement('section'); el.className = 'conversation'; el.setAttribute('aria-label', `Chat with ${entry.name}`);
       const log = document.createElement('div'); log.className = 'message-log'; log.setAttribute('role', 'log'); log.setAttribute('aria-label', `${entry.name} messages`); log.setAttribute('aria-live', 'polite');
       const messagesEl = document.createElement('div'); messagesEl.className = 'message-stack'; log.append(messagesEl);
-      const notice = document.createElement('p'); notice.className = 'chat-notice'; notice.setAttribute('role', 'status'); notice.textContent = 'Connecting to X…';
+      const notice = document.createElement('p'); notice.className = 'chat-notice'; notice.setAttribute('role', 'status'); notice.textContent = cachedMessages.length ? '' : 'Connecting to X…';
       const form = document.createElement('form'); form.className = 'chat-compose';
       const actions = document.createElement('details'); actions.className = 'chat-actions';
       const more = document.createElement('summary'); more.textContent = '⋯'; more.setAttribute('aria-label', `Options for ${entry.name}`); more.title = 'Chat options';
@@ -288,31 +317,65 @@
       menu.addEventListener('click', event => { if (event.target.closest('button,a')) actions.open = false; });
       el.addEventListener('focusout', event => { if (!el.contains(event.relatedTarget)) actions.open = false; });
       const compose = document.createElement('div'); compose.className = 'compose-wrap';
+      const attachmentList = document.createElement('div'); attachmentList.className = 'attachment-list'; attachmentList.hidden = true; attachmentList.setAttribute('aria-label', 'Attachments');
+      const composeLine = document.createElement('div'); composeLine.className = 'compose-line';
+      const picker = document.createElement('input'); picker.type = 'file'; picker.multiple = true; picker.hidden = true;
+      const attach = document.createElement('button'); attach.type = 'button'; attach.className = 'attach-button'; attach.title = 'Attach files'; attach.setAttribute('aria-label', `Attach files to ${entry.name}`);
+      const clip = document.createElementNS(svgNS, 'svg'); clip.setAttribute('viewBox', '0 0 24 24'); clip.setAttribute('fill', 'none'); clip.setAttribute('stroke', 'currentColor'); clip.setAttribute('stroke-width', '1.7'); clip.setAttribute('stroke-linecap', 'round'); clip.setAttribute('aria-hidden', 'true');
+      const clipPath = document.createElementNS(svgNS, 'path'); clipPath.setAttribute('d', 'M8 12.5 14.5 6a3.5 3.5 0 0 1 5 5l-9 9a5 5 0 0 1-7-7l9-9a2 2 0 0 1 3 3l-8 8a.8.8 0 0 1-1-1l7-7'); clip.append(clipPath); attach.append(clip);
       const input = document.createElement('textarea'); input.className = 'chat-input'; input.rows = 1; input.maxLength = 30000; input.placeholder = 'Message…'; input.setAttribute('aria-label', `Message ${entry.name}`);
       const send = document.createElement('button'); send.type = 'submit'; send.className = 'send-button'; send.textContent = '↑'; send.setAttribute('aria-label', `Send to ${entry.name}`); send.disabled = true;
-      compose.append(input, send); form.append(actions, compose); el.append(log, notice, form); reveal.append(el);
-      const session = { entry, row, el, reveal, log, messagesEl, input, send, notice, reconnect, actions, open: false, ready: false, messages: [], pending: new Map(), sendingId: null, initialized: false, unread: 0 };
+      composeLine.append(attach, input, send); compose.append(attachmentList, composeLine, picker); form.append(actions, compose); el.append(log, notice, form); reveal.append(el);
+      const session = { entry, row, el, reveal, log, messagesEl, input, send, notice, reconnect, actions, attachments: [], open: false, ready: false, messages: cachedMessages, pending: new Map(), sendingId: null, initialized: false, unread: 0 };
       sessions.set(entry.href, session);
       void reveal.offsetHeight;
-      function updateControls() { input.disabled = !!session.sendingId; reconnect.disabled = !!session.sendingId; send.disabled = !session.ready || !!session.sendingId || !input.value.trim(); }
+      function updateControls() { input.disabled = !!session.sendingId; attach.disabled = !!session.sendingId; reconnect.disabled = !!session.sendingId; attachmentList.querySelectorAll('button').forEach(button => { button.disabled = !!session.sendingId; }); send.disabled = !session.ready || !!session.sendingId || (!input.value.trim() && !session.attachments.length); }
+      function renderAttachments() {
+        attachmentList.replaceChildren(); attachmentList.hidden = !session.attachments.length;
+        session.attachments.forEach(item => {
+          const card = document.createElement('div'); card.className = 'attachment-card';
+          if (item.url) { const image = document.createElement('img'); image.src = item.url; image.alt = ''; card.append(image); }
+          const label = document.createElement('span'); label.className = 'attachment-name'; label.textContent = item.file.name; label.title = `${item.file.name} (${Math.ceil(item.file.size / 1024)} KB)`;
+          const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'attachment-remove'; remove.textContent = '×'; remove.setAttribute('aria-label', `Remove ${item.file.name}`);
+          remove.addEventListener('click', () => { if (session.sendingId) return; if (item.url) URL.revokeObjectURL(item.url); session.attachments = session.attachments.filter(value => value !== item); renderAttachments(); input.focus(); });
+          card.append(label, remove); attachmentList.append(card);
+        }); updateControls(); sizePanel(session);
+      }
+      session.releaseAttachments = () => { for (const item of session.attachments) if (item.url) URL.revokeObjectURL(item.url); session.attachments = []; };
+      function addFiles(files) {
+        if (session.sendingId || !files.length) return;
+        try {
+          bridge.validateFiles([...session.attachments.map(item => item.file), ...files]);
+          session.attachments.push(...files.map(file => ({ file, url: /^image\/(png|jpeg|gif|webp|avif|bmp)$/.test(file.type) ? URL.createObjectURL(file) : null })));
+          notice.textContent = ''; renderAttachments(); input.focus();
+        } catch (error) { notice.textContent = error.message; }
+      }
+      attach.addEventListener('click', () => picker.click());
+      picker.addEventListener('change', () => { addFiles(Array.from(picker.files)); picker.value = ''; });
+      input.addEventListener('paste', event => { const files = Array.from(event.clipboardData?.files || []); if (files.length) { event.preventDefault(); addFiles(files); } });
+      compose.addEventListener('dragover', event => { if (Array.from(event.dataTransfer?.types || []).includes('Files')) { event.preventDefault(); compose.classList.add('is-dragging'); } });
+      compose.addEventListener('dragleave', event => { if (!compose.contains(event.relatedTarget)) compose.classList.remove('is-dragging'); });
+      compose.addEventListener('drop', event => { compose.classList.remove('is-dragging'); const files = Array.from(event.dataTransfer?.files || []); if (files.length) { event.preventDefault(); addFiles(files); } });
       session.updateControls = updateControls;
       session.transport = globalThis.XWorkspaceTransport(entry, engines, state => {
         const previousIds = new Set(session.messages.map(row => row.id));
         session.ready = state.ready;
         session.messages = bridge.mergeMessages(session.messages, state.messages);
+        if (state.messages.length) messageCache?.put(session.entry, session.messages);
         if (session.initialized && (!session.open || !expanded)) session.unread += state.messages.filter(row => row.role === 'bot' && !previousIds.has(row.id)).length;
         if (state.messages.length) session.initialized = true;
         for (const row of state.messages) {
           if (row.role !== 'user') continue;
-          for (const [id, pending] of session.pending) if (pending.text === row.text && !pending.baseline.has(row.id)) { clearTimeout(pending.timer); session.pending.delete(id); if (session.sendingId === id) session.sendingId = null; break; }
+          for (const [id, pending] of session.pending) if (!pending.files.length && pending.text === row.text && !pending.baseline.has(row.id)) { clearTimeout(pending.timer); session.pending.delete(id); if (session.sendingId === id) session.sendingId = null; break; }
         }
-        const status = state.error || (state.connecting ? 'Connecting to X…' : '');
+        const status = state.error || (state.connecting && !session.messages.length ? 'Connecting to X…' : '');
         if (notice.textContent !== status) notice.textContent = status;
         updateControls(); renderMessages(session); renderRail();
       }, result => {
         const pending = session.pending.get(result.id); if (!pending) return;
+        if (result.type === 'xw-bot-send-progress') { pending.status = 'Uploading attachments…'; renderMessages(session); return; }
         clearTimeout(pending.timer); session.sendingId = null;
-        if (result.ok === true) pending.status = 'Submitted to X';
+        if (result.ok === true) { pending.status = 'Submitted to X'; if (pending.files.length) { session.pending.delete(result.id); session.releaseAttachments(); renderAttachments(); } }
         else { session.pending.delete(result.id); input.value = pending.text; notice.textContent = typeof result.error === 'string' ? result.error.slice(0, 300) : 'X could not submit this message. Your draft is preserved.'; }
         updateControls(); renderMessages(session);
       });
@@ -321,11 +384,12 @@
       input.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); form.requestSubmit(); } });
       form.addEventListener('submit', event => {
         event.preventDefault(); const text = input.value;
-        if (!text.trim() || !session.open || !session.ready || session.sendingId || !session.transport) return;
+        if ((!text.trim() && !session.attachments.length) || !session.open || !session.ready || session.sendingId || !session.transport) return;
         const id = crypto.randomUUID();
-        const pending = { text, status: 'Handing to X…', baseline: new Set(session.messages.map(row => row.id)) };
-        pending.timer = setTimeout(() => { if (!session.pending.has(id)) return; session.pending.delete(id); if (session.sendingId === id) session.sendingId = null; input.value = text; notice.textContent = 'Delivery was not confirmed. Check the conversation in X before retrying. Your draft is preserved.'; updateControls(); renderMessages(session); }, 12000);
-        session.pending.set(id, pending); session.sendingId = id; input.value = ''; notice.textContent = ''; updateControls(); renderMessages(session); session.transport.send(id, text);
+        const files = session.attachments.map(item => item.file);
+        const pending = { text, files: files.map(file => file.name), status: files.length ? 'Uploading attachments…' : 'Handing to X…', baseline: new Set(session.messages.map(row => row.id)) };
+        pending.timer = setTimeout(() => { if (!session.pending.has(id)) return; session.pending.delete(id); if (session.sendingId === id) session.sendingId = null; input.value = text; notice.textContent = 'Delivery was not confirmed. Check the conversation in X before retrying. Your draft is preserved.'; updateControls(); renderMessages(session); }, files.length ? 75000 : 12000);
+        session.pending.set(id, pending); session.sendingId = id; input.value = ''; notice.textContent = ''; updateControls(); renderMessages(session); session.transport.send(id, text, files);
       });
       history.addEventListener('click', () => { session.transport?.history(); });
       reconnect.addEventListener('click', () => session.transport?.reconnect());
@@ -338,21 +402,33 @@
       session.messageNodes ||= new Map();
       const rows = session.messages.map(row => ({ ...row, key: row.id }));
       if (!rows.length && session.ready && !session.pending.size) rows.push({ key: 'empty-placeholder', text: 'A fresh little conversation. Say hello when you’re ready.', role: 'system' });
-      for (const [id, pending] of session.pending) rows.push({ key: `pending:${id}`, text: pending.text, role: 'user', pending: pending.status });
+      for (const [id, pending] of session.pending) rows.push({ key: `pending:${id}`, text: [pending.text, ...pending.files.map(name => `📎 ${name}`)].filter(Boolean).join('\n'), role: 'user', pending: pending.status });
       const keys = new Set(rows.map(row => row.key));
       for (const [key, node] of session.messageNodes) if (!keys.has(key)) { node.remove(); session.messageNodes.delete(key); }
       rows.forEach((row, index) => {
         let bubble = session.messageNodes.get(row.key);
         if (!bubble) { bubble = document.createElement('div'); session.messageNodes.set(row.key, bubble); }
-        const snapshot = JSON.stringify([row.text, row.role, row.pending, row.links]);
+        const snapshot = JSON.stringify([row.text, row.role, row.pending, row.links, row.images]);
         if (bubble.dataset.snapshot !== snapshot) {
           bubble.dataset.snapshot = snapshot;
-          bubble.className = `message ${row.role}${row.pending ? ' pending' : ''}`; bubble.replaceChildren();
-          for (const part of bridge.messageParts(row)) {
-            if (!part.href) { bubble.append(document.createTextNode(part.text)); continue; }
-            const link = document.createElement('a'); link.href = part.href; link.textContent = part.text; link.rel = 'noopener noreferrer';
-            link.addEventListener('click', event => globalThis.XWorkspaceNavigation.follow(event, part.href)); bubble.append(link);
+          bubble.className = `message ${row.role}${row.pending ? ' pending' : ''}${row.images?.length ? ' has-images' : ''}`; bubble.replaceChildren();
+          for (const attachment of row.images || []) {
+            const button = document.createElement('button'); button.type = 'button'; button.className = 'message-image-button'; button.setAttribute('aria-label', `View ${attachment.alt || 'image attachment'}`);
+            const image = document.createElement('img'); image.className = 'message-image'; image.src = attachment.src; image.alt = attachment.alt || 'Image attachment'; image.referrerPolicy = 'no-referrer'; image.decoding = 'async';
+            image.addEventListener('load', () => { sizePanel(session); if (nearBottom) session.log.scrollTop = session.log.scrollHeight; });
+            image.addEventListener('error', () => { button.hidden = true; sizePanel(session); });
+            button.addEventListener('click', () => { viewerImage.src = attachment.src; viewerImage.alt = image.alt; imageViewer.showModal(); });
+            button.append(image); bubble.append(button);
+            const caption = document.createElement('span'); caption.className = 'message-image-label'; caption.textContent = image.alt; bubble.append(caption);
           }
+          const copy = document.createElement('span'); copy.className = 'message-copy';
+          const imageOnly = row.images?.length && row.text.replace(/\s/g, '') === row.images.map(image => `[${image.alt}]`).join('').replace(/\s/g, '');
+          for (const part of imageOnly ? [] : bridge.messageParts(row)) {
+            if (!part.href) { copy.append(document.createTextNode(part.text)); continue; }
+            const link = document.createElement('a'); link.href = part.href; link.textContent = part.text; link.rel = 'noopener noreferrer';
+            link.addEventListener('click', event => globalThis.XWorkspaceNavigation.follow(event, part.href)); copy.append(link);
+          }
+          if (copy.childNodes.length) bubble.append(copy);
           bubble.setAttribute('aria-label', row.role === 'user' ? 'You' : row.role === 'bot' ? session.entry.name : 'Activity');
           if (row.pending) { const label = document.createElement('span'); label.className = 'pending-label'; label.textContent = row.pending; bubble.append(label); }
         }
@@ -368,7 +444,7 @@
       update(value) { entries = globalThis.XWorkspaceBots.normalize(value, location.origin); renderRail(); restorePanels(); },
       render() { renderRail(); restorePanels(); },
       openSession,
-      destroy() { hideTooltip(); tooltip.remove(); destroyed = true; window.removeEventListener('resize', resize); for (const session of sessions.values()) { session.transport?.destroy(); for (const pending of session.pending.values()) clearTimeout(pending.timer); } sessions.clear(); rows.clear(); dock.remove(); style.remove(); }
+      destroy() { hideTooltip(); tooltip.remove(); imageViewer.close(); imageViewer.remove(); destroyed = true; window.removeEventListener('resize', resize); for (const session of sessions.values()) { session.transport?.destroy(); session.releaseAttachments(); for (const pending of session.pending.values()) clearTimeout(pending.timer); } sessions.clear(); rows.clear(); dock.remove(); style.remove(); }
     };
   };
 })();
