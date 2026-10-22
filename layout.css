@@ -1,0 +1,31 @@
+/* X owns all feed/chat content. These rules only change the outer shell. */
+html.xw-active { --xw-rail: 76px; --xw-pane: 440px; }
+html.xw-active body { overflow-x: hidden; }
+html.xw-active header[role="banner"] {
+  position: fixed !important; inset: 0 auto 0 0 !important;
+  width: var(--xw-rail) !important; z-index: 20 !important;
+}
+html.xw-active header[role="banner"] > div { width: var(--xw-rail) !important; }
+html.xw-active header[role="banner"] nav a { width: 56px !important; }
+html.xw-active header[role="banner"] nav a > div > div:not(:first-child),
+html.xw-active [data-testid="SideNav_NewTweet_Button"] span,
+html.xw-active [data-testid="SideNav_AccountSwitcher_Button"] > div:not(:first-child) { display: none !important; }
+html.xw-active [data-testid="SideNav_NewTweet_Button"] { width: 50px !important; min-width: 50px !important; }
+html.xw-active main[role="main"] {
+  margin-left: var(--xw-rail) !important;
+  width: calc(100vw - var(--xw-rail) - var(--xw-pane)) !important;
+  max-width: none !important; flex: none !important;
+  display: flex !important; flex-direction: column !important; align-items: center !important;
+}
+html.xw-active main[role="main"] > div { width: 100% !important; max-width: 600px !important; }
+html.xw-active [data-testid="primaryColumn"] { width: 100% !important; max-width: 600px !important; min-width: 0 !important; }
+html.xw-active [data-testid="sidebarColumn"],
+html.xw-active [data-testid="DMDrawer"] { display: none !important; }
+html.xw-frame, html.xw-frame body { margin: 0 !important; overflow: hidden !important; }
+html.xw-frame header[role="banner"], html.xw-frame [data-testid="BottomBar"],
+html.xw-frame [data-testid="sidebarColumn"], html.xw-frame [data-testid="DMDrawer"] { display: none !important; }
+html.xw-frame main[role="main"], html.xw-frame main[role="main"] > div,
+html.xw-frame [data-testid="primaryColumn"] {
+  margin: 0 !important; padding: 0 !important; width: 100% !important;
+  max-width: none !important; min-width: 0 !important; flex: 1 !important;
+}
