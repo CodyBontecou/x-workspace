@@ -64,7 +64,35 @@
       } catch { return []; }
     });
   }
-  function readMessage(element) {
+  function normalizeFiles(files) {
+    if (!Array.isArray(files)) return [];
+    return files.slice(0, 6).flatMap(file => {
+      if (!file || typeof file.name !== 'string' || !file.name.trim() || file.name.length > 255 || !Number.isInteger(file.index) || file.index < 0 || file.index > 5) return [];
+      const size = typeof file.size === 'string' && /^\d[\d., ]*\s*(?:bytes?|[KMGT]?i?B)$/i.test(file.size) ? file.size.slice(0, 32) : '';
+      return [{ name: file.name, index: file.index, size }];
+    });
+  }
+  function fileControls(item) {
+    return Array.from(item.querySelectorAll?.('a[download],button') || []).flatMap(control => {
+      if (control.querySelector?.('img,video,audio') || control.disabled) return [];
+      if (control.tagName === 'A' && !safeLink(control.getAttribute('href'))) {
+        try { const url = new URL(control.getAttribute('href')); if (url.protocol !== 'blob:' || url.origin !== location.origin) return []; }
+        catch { return []; }
+      }
+      const label = (control.innerText || control.textContent || '').trim();
+      const size = label.match(/\b\d[\d.,]*\s*(?:bytes?|[KMGT]i?B|B)\b/i)?.[0] || '';
+      const download = control.getAttribute('download');
+      const nativeName = control.querySelector?.('.font-medium')?.textContent?.trim();
+      const nativeCard = !!control.querySelector?.('.x-middot-group') && typeof nativeName === 'string' && /\.[a-z0-9]{1,12}$/i.test(nativeName);
+      const candidates = [download, nativeCard ? nativeName : null, control.getAttribute('aria-label'), ...label.split('\n')];
+      let name = candidates.find(value => typeof value === 'string' && /^.{1,240}\.[a-z0-9]{1,12}$/i.test(value.trim()));
+      if (!name && size) name = label.slice(0, label.indexOf(size)).trim();
+      if (!name || !/\.[a-z0-9]{1,12}$/i.test(name) || (!size && download === null && !nativeCard)) return [];
+      name = name.trim().replace(/^(?:Download|Open)\s+/i, '');
+      return [{ control, name: name.slice(0, 255), size }];
+    }).slice(0, 6);
+  }
+  function readMessage(element, files = []) {
     // Read text and link ranges together; never copy native HTML into our UI.
     if (!element.childNodes) return { text: element.innerText || element.textContent || '' };
     let text = ''; const links = [], images = [];
@@ -73,6 +101,8 @@
       if (text.length >= MAX_TEXT) return;
       if (node.nodeType === 3) { text += node.textContent.slice(0, MAX_TEXT - text.length); return; }
       if (node.nodeType !== 1 || ['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(node.tagName) || node.hidden || node.getAttribute('aria-hidden') === 'true') return;
+      const file = files.find(file => file.control === node);
+      if (file) { text += `[${file.name}]`; return; }
       if (node.tagName === 'BR') { text += '\n'; return; }
       if (node.tagName === 'IMG') {
         const alt = node.getAttribute('alt') || 'Image attachment';
@@ -118,12 +148,12 @@
     if (!Array.isArray(rows)) return [];
     return rows.slice(-250).flatMap(row => {
       if (!row || typeof row.id !== 'string' || !row.id || row.id.length > 240 || seen.has(row.id)) return [];
-      const images = normalizeImages(row.images);
-      const text = (typeof row.text === 'string' ? row.text.slice(0, MAX_TEXT) : '') || images.map(image => `[${image.alt || 'Image attachment'}]`).join('\n');
-      if (!text.trim() && !images.length) return [];
+      const images = normalizeImages(row.images), files = normalizeFiles(row.files);
+      const text = (typeof row.text === 'string' ? row.text.slice(0, MAX_TEXT) : '') || [...images.map(image => `[${image.alt || 'Image attachment'}]`), ...files.map(file => `[${file.name}]`)].join('\n');
+      if (!text.trim() && !images.length && !files.length) return [];
       seen.add(row.id);
       const links = normalizeLinks(row.links, text);
-      return [{ id: row.id, text, role: ['user', 'bot', 'system'].includes(row.role) ? row.role : 'system', ...(links.length ? { links } : {}), ...(images.length ? { images } : {}) }];
+      return [{ id: row.id, text, role: ['user', 'bot', 'system'].includes(row.role) ? row.role : 'system', ...(links.length ? { links } : {}), ...(images.length ? { images } : {}), ...(files.length ? { files } : {}) }];
     });
   }
   function mergeMessages(previous, incoming) {
@@ -165,9 +195,11 @@
       const id = item.getAttribute('data-dm-item-key');
       if (!id || id.startsWith('sep-')) continue;
       const bubble = item.querySelector('.rounded-chat');
-      const alignment = item.querySelector('.flex.w-full.flex-wrap');
-      const role = bubble || alignment && item.querySelector('img')?.tagName === 'IMG' ? alignment?.classList.contains('justify-end') ? 'user' : 'bot' : 'system';
-      rows.push({ id, ...readMessage(bubble || item), role });
+      const controls = fileControls(item);
+      const alignment = item.querySelector('.flex.w-full.flex-wrap') || item.querySelector('.relative.flex.w-full');
+      const role = bubble || controls.length || alignment && item.querySelector('img')?.tagName === 'IMG' ? alignment?.classList.contains('justify-end') ? 'user' : 'bot' : 'system';
+      const files = controls.map(({ name, size }, index) => ({ name, size, index }));
+      rows.push({ id, ...readMessage(bubble || item, controls), ...(files.length ? { files } : {}), role });
     }
     return normalizeMessages(rows);
   }
@@ -183,6 +215,16 @@
       if (event.source !== parent || event.origin !== location.origin || event.data?.href !== getPath()) return;
       const data = event.data, root = getRoot();
       if (data.type === 'xw-bot-history') { root?.querySelector('[data-testid="dm-message-scroller"]')?.scrollTo({ top: 0 }); return; }
+      if (data.type === 'xw-bot-file') {
+        if (typeof data.id !== 'string' || data.id.length > 120 || handled.has(data.id) || typeof data.messageId !== 'string' || data.messageId.length > 240 || !normalizeFiles([data.file]).length) return;
+        handled.add(data.id); if (handled.size > 100) handled.delete(handled.values().next().value);
+        const reply = (ok, error) => parent.postMessage({ type: 'xw-bot-file-result', href: getPath(), id: data.id, ok, error }, location.origin);
+        const item = Array.from(root?.querySelectorAll('[data-testid="dm-message-scroller"] [data-dm-item-key]') || []).find(item => item.getAttribute('data-dm-item-key') === data.messageId);
+        const file = item && fileControls(item)[data.file.index];
+        if (!file || file.name !== data.file.name) { reply(false, 'This file is no longer loaded in X. Load earlier messages or open this conversation in X to download it.'); return; }
+        try { file.control.click(); reply(true); } catch { reply(false, 'X could not open this file. Open the conversation in X to download it.'); }
+        return;
+      }
       if (data.type !== 'xw-bot-send' || typeof data.id !== 'string' || data.id.length > 120 || handled.has(data.id)) return;
       const reply = (ok, error) => parent.postMessage({ type: 'xw-bot-send-result', href: getPath(), id: data.id, ok, error }, location.origin);
       if (sending) { reply(false, 'This chat is still sending a message.'); return; }

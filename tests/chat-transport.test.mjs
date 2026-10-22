@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 const listeners = new Set(), frames = [], states = [], results = [], timers = new Set();
 let prepare;
-const context = vm.createContext({ URL, location: { origin: 'https://x.com' },
+const context = vm.createContext({ URL, crypto, location: { origin: 'https://x.com' },
   document: { createElement() { const frame = { contentWindow: { postMessage(data, origin) { frame.sent = { data, origin }; } }, remove() { frame.removed = true; } }; frames.push(frame); return frame; } },
   window: { addEventListener: (type, fn) => listeners.add(fn), removeEventListener: (type, fn) => listeners.delete(fn) },
   chrome: { runtime: { sendMessage: async () => prepare } },
@@ -38,8 +38,20 @@ const attachments = [new File(['test'], 'notes.txt', {type:'text/plain'})];
 a.send('with-file', 'Read this', attachments); assert.equal(frame.sent.data.files, attachments);
 receive({...event,data:{type:'xw-bot-send-progress',href:'/i/chat/bots/a',id:'with-file',status:'Uploading attachments…'}});
 assert.equal(results.pop().type,'xw-bot-send-progress');
+const download = a.downloadFile('file-row',{name:'notes.pdf',index:0,size:'12 KB'});
+const fileRequest = frame.sent.data;
+assert.equal(fileRequest.type,'xw-bot-file'); assert.equal(fileRequest.href,'/i/chat/bots/a');
+receive({...event,source:{},data:{type:'xw-bot-file-result',href:'/i/chat/bots/a',id:fileRequest.id,ok:true}});
+assert.equal(timers.size,1,'An unrelated frame must not acknowledge a file request');
+receive({...event,data:{type:'xw-bot-file-result',href:'/i/chat/bots/a',id:fileRequest.id,ok:true}});
+await download; assert.equal(timers.size,0);
+const unavailable = a.downloadFile('missing',{name:'old.pdf',index:0});
+receive({...event,data:{type:'xw-bot-file-result',href:'/i/chat/bots/a',id:frame.sent.data.id,ok:false,error:'File no longer loaded'}});
+await assert.rejects(unavailable,/no longer loaded/);
 receive({...event,data:{type:'xw-bot-send-result',href:'/i/chat/bots/a',id:'test',ok:true}}); assert.equal(results.length,1);
-prepare={ok:true}; await a.reconnect();
+const interruptedFile = a.downloadFile('file-row',{name:'notes.pdf',index:0});
+const cancelledFile = assert.rejects(interruptedFile,/reconnected/);
+prepare={ok:true}; await a.reconnect(); await cancelledFile;
 assert.equal(states.at(-1).connecting,true,'Explicit reconnect starts a new connection attempt');
 assert(frame.removed); assert.equal(frames.length,2);
 const count=states.length;

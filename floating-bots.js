@@ -65,6 +65,16 @@
       .message-image { display: block; width: auto; max-width: 100%; max-height: 240px; min-width: 64px; min-height: 64px; object-fit: contain; }
       .message-image-label { display: block; margin: 5px 6px; color: inherit; font-size: 11px; overflow-wrap: anywhere; }
       .message.has-images > .message-copy { display: block; padding: 4px 8px; }
+      .message.has-files { padding: 6px; min-width: min(230px,100%); }
+      .message.system.has-files { margin: 0 0 10px auto; background: #26242d; text-align: left; }
+      .message.has-files > .message-copy { display: block; padding: 4px 8px; }
+      .file-card { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; padding: 11px; border: 1px solid #ffffff20; border-radius: 13px; background: #ffffff08; text-align: left; }
+      .file-card + .file-card { margin-top: 6px; }
+      .file-card-type { display: grid; place-items: center; flex: 0 0 42px; height: 46px; border: 1px solid #ffffff25; border-radius: 7px; background: #ffffff0a; font-size: 10px; font-weight: 650; letter-spacing: .3px; }
+      .file-card-info { display: flex; flex: 1; flex-direction: column; gap: 3px; min-width: 0; }
+      .file-card-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 550; }
+      .file-card-detail { font-size: 10px; opacity: .65; }
+      .file-card-action { flex: 0 0 auto; font-size: 18px; opacity: .7; }
       .image-viewer { max-width: min(960px,calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 40px 12px 12px; border: 1px solid #ffffff30; border-radius: 18px; background: #17151d; color: #f3f1f7; }
       .image-viewer::backdrop { background: #000b; }
       .image-viewer img { display: block; max-width: 100%; max-height: calc(100vh - 110px); object-fit: contain; }
@@ -408,10 +418,10 @@
       rows.forEach((row, index) => {
         let bubble = session.messageNodes.get(row.key);
         if (!bubble) { bubble = document.createElement('div'); session.messageNodes.set(row.key, bubble); }
-        const snapshot = JSON.stringify([row.text, row.role, row.pending, row.links, row.images]);
+        const snapshot = JSON.stringify([row.text, row.role, row.pending, row.links, row.images, row.files, row.files?.length ? session.ready : null]);
         if (bubble.dataset.snapshot !== snapshot) {
           bubble.dataset.snapshot = snapshot;
-          bubble.className = `message ${row.role}${row.pending ? ' pending' : ''}${row.images?.length ? ' has-images' : ''}`; bubble.replaceChildren();
+          bubble.className = `message ${row.role}${row.pending ? ' pending' : ''}${row.images?.length ? ' has-images' : ''}${row.files?.length ? ' has-files' : ''}`; bubble.replaceChildren();
           for (const attachment of row.images || []) {
             const button = document.createElement('button'); button.type = 'button'; button.className = 'message-image-button'; button.setAttribute('aria-label', `View ${attachment.alt || 'image attachment'}`);
             const image = document.createElement('img'); image.className = 'message-image'; image.src = attachment.src; image.alt = attachment.alt || 'Image attachment'; image.referrerPolicy = 'no-referrer'; image.decoding = 'async';
@@ -421,9 +431,27 @@
             button.append(image); bubble.append(button);
             const caption = document.createElement('span'); caption.className = 'message-image-label'; caption.textContent = image.alt; bubble.append(caption);
           }
+          for (const file of row.files || []) {
+            const button = document.createElement('button'); button.type = 'button'; button.className = 'file-card'; button.disabled = !session.ready; button.setAttribute('aria-label', `Download ${file.name}`); button.title = file.name;
+            const extension = file.name.split('.').pop().toUpperCase();
+            const icon = document.createElement('span'); icon.className = 'file-card-type'; icon.textContent = extension.length <= 5 ? extension : 'FILE'; icon.setAttribute('aria-hidden', 'true');
+            const info = document.createElement('span'); info.className = 'file-card-info';
+            const name = document.createElement('span'); name.className = 'file-card-name'; name.textContent = file.name;
+            const detail = document.createElement('span'); detail.className = 'file-card-detail'; detail.textContent = [extension.length <= 12 ? `${extension} file` : 'File', file.size].filter(Boolean).join(' · ');
+            const action = document.createElement('span'); action.className = 'file-card-action'; action.textContent = '↓'; action.setAttribute('aria-hidden', 'true');
+            info.append(name, detail); button.append(icon, info, action); bubble.append(button);
+            button.addEventListener('click', async () => {
+              if (!session.ready || !session.transport) return;
+              button.disabled = true; button.setAttribute('aria-busy', 'true');
+              try { await session.transport.downloadFile(row.id, file); }
+              catch (error) { session.notice.textContent = error.message; }
+              finally { button.removeAttribute('aria-busy'); button.disabled = !session.ready; }
+            });
+          }
           const copy = document.createElement('span'); copy.className = 'message-copy';
-          const imageOnly = row.images?.length && row.text.replace(/\s/g, '') === row.images.map(image => `[${image.alt}]`).join('').replace(/\s/g, '');
-          for (const part of imageOnly ? [] : bridge.messageParts(row)) {
+          const attachmentLabels = [...(row.images || []).map(image => `[${image.alt}]`), ...(row.files || []).map(file => `[${file.name}]`)].join('').replace(/\s/g, '');
+          const attachmentOnly = attachmentLabels && row.text.replace(/\s/g, '') === attachmentLabels;
+          for (const part of attachmentOnly ? [] : bridge.messageParts(row)) {
             if (!part.href) { copy.append(document.createTextNode(part.text)); continue; }
             const link = document.createElement('a'); link.href = part.href; link.textContent = part.text; link.rel = 'noopener noreferrer';
             link.addEventListener('click', event => globalThis.XWorkspaceNavigation.follow(event, part.href)); copy.append(link);

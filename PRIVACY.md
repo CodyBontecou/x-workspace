@@ -18,6 +18,8 @@ Files you select, drop, or paste into the custom composer remain in the tab's me
 
 Inline history previews reuse images loaded by the live X conversation. Embedded raster images are decoded into temporary local image URLs with bounded memory use; approved X image CDN URLs may also load directly. Image contents and preview URLs are excluded from the saved message cache and are released when the connection's document is closed.
 
+Document download cards may cache filenames, displayed file sizes, and a position within the message. Clicking a card invokes the matching file's native X download control. The extension does not cache document contents or download URLs.
+
 The extension has no developer-operated backend, analytics, advertising, or telemetry. It does not sell user data, send conversation content to its developer, or use it to train models. It does not request permission to read cookies, passwords, payment information, or browsing history outside x.com.
 
 ## Browser permissions
