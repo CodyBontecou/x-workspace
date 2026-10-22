@@ -22,6 +22,7 @@ To update, pull the latest source, click **Reload** on the extension in `chrome:
 - Resize the pane from 400 to 640 px, subject to available space.
 - Collapse and reopen chat while preserving the embedded conversation.
 - Saved pane width and collapse preference.
+- Unread conversation avatars along the top rim of **Open chat**, with three visible avatars and an overflow count. Click an avatar to open that conversation. Missing images use initials.
 - Keyboard resizing: focus the divider and use arrow keys, Home, or End.
 - Toolbar popup to enable or disable the layout.
 - Chat overlays the feed below 1100 px rather than squeezing both columns.
@@ -48,7 +49,11 @@ Top-level pages and Content Security Policy remain unchanged. The rule is remove
 | Host and content-script access on `https://x.com/*` | Adjust the layout and load native chat. |
 | `declarativeNetRequestWithHostAccess` | Apply the scoped chat framing rule. |
 
-The extension has no analytics, backend, API credentials, or cookie-reading permission. It does not extract or store message text. The declarative header rule does not expose request or response bodies to the extension. Content scripts have technical access to X's page DOM; all extension code is included in this repository for inspection.
+The extension has no analytics, backend, API credentials, or cookie-reading permission. It does not extract or store message text. For unread badges, the embedded frame observes X's inbox indicators and passes only conversation titles, avatar URLs, and conversation paths to the parent page. This metadata stays in memory and is not saved to extension storage or sent to a backend. Avatar images load from X's image CDN. The declarative header rule does not expose request or response bodies to the extension. Content scripts have technical access to X's page DOM; all extension code is included in this repository for inspection.
+
+The chat frame stays mounted with its dimensions preserved while collapsed, including when a page first opens with chat collapsed. This lets its inbox continue receiving updates. Unread badges follow X's own read state, including conversations manually marked unread. Group badges represent the conversation avatar rather than identifying the author of a particular group message.
+
+Detection covers inbox rows X has rendered. Known unread rows are retained when X virtualizes them away, then cleared when a rendered row is marked read. Counts may lag if a conversation is read elsewhere while its row is unmounted, and unseen older unread rows cannot be counted until X renders them. Chat must be signed in and unlocked; this is an in-page indicator, not a system notification service.
 
 ## Development and testing
 
@@ -56,12 +61,16 @@ Use a current Node.js release to run the regression check:
 
 ```sh
 node tests/frame-policy.test.mjs
+node tests/unread.test.mjs
 node --check background.js
 node --check content.js
+node --check unread.js
 node --check popup.js
 ```
 
 The regression check uses mocked Chrome APIs to verify rule installation before acknowledgement, tab/route/origin/resource scoping, rejection of unauthorized senders and disabled layouts, and cleanup. It does not replace a browser integration test.
+
+Unread unit checks cover state reconciliation, virtualized rows, deduplication, metadata boundaries, and URL validation. A local browser fixture verified arrivals while collapsed, overflow, opening the selected conversation, clearing avatars on read, and loading an inbox on a page that starts collapsed. X's native unread dot was inspected against a real conversation; live incoming-message behavior with version 0.2.0 still needs verification in the installed extension.
 
 The layout controls were checked in a local browser fixture, and native chat loading was confirmed by a user running version 0.1.1 on October 22, 2026. Message sending, calls, attachments, and every X account configuration have not been exhaustively tested.
 
