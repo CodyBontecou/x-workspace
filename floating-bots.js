@@ -3,7 +3,7 @@
   globalThis.XWorkspaceFloatingBots = function (shadow, { getSettings, save, engines, reconnectInbox, messageCache }) {
     const bridge = globalThis.XWorkspaceChatBridge;
     const sessions = new Map(), rows = new Map(), restored = new Set();
-    let entries = messageCache?.entries() || [], expanded = false, destroyed = false;
+    let entries = messageCache?.entries() || [], botsVisible = true, destroyed = false;
     const style = document.createElement('style');
     style.textContent = `
       :host { all: initial; font: 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color: #f3f1f7; color-scheme: dark; --ease-out: cubic-bezier(0.23,1,0.32,1); }
@@ -25,8 +25,13 @@
       .dock-chips.instant { transition: none; }
       .bot-tooltip { position: fixed; z-index: 101; max-width: calc(100vw - 16px); padding: 5px 8px; border: 1px solid #ffffff1c; border-radius: 7px; background: #242128; color: #f3f1f7; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; box-shadow: 0 3px 12px #0005; pointer-events: none; }
       .dock-footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; width: 100%; flex-shrink: 0; }
-      .dock-switcher { display: flex; align-items: center; gap: 3px; min-width: 0; overflow-x: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #45404e transparent; pointer-events: auto; }
-      .dock-switcher .rail-bot { width: 30px; flex: 0 0 30px; }
+      .dock-switcher { display: flex; align-items: center; gap: 3px; min-width: 0; overflow-x: auto; overflow-y: hidden; overscroll-behavior: contain; scrollbar-width: none; pointer-events: auto; visibility: visible; transition: visibility 0s; }
+      .dock-switcher::-webkit-scrollbar { display: none; }
+      .dock-switcher.is-hidden { visibility: hidden; transition-delay: var(--bot-exit-duration,180ms); }
+      .dock-switcher.is-hidden,.dock-switcher.is-hidden * { pointer-events: none !important; }
+      .dock-switcher .rail-bot { width: 30px; flex: 0 0 30px; opacity: 1; transition: opacity 180ms var(--ease-out); transition-delay: var(--bot-enter-delay,0ms); }
+      .dock-switcher.is-hidden .rail-bot { opacity: 0; transition-delay: var(--bot-exit-delay,0ms); }
+      .dock-switcher.instant,.dock-switcher.instant .rail-bot { transition: none; }
       .dock-switcher .dock-chip { width: 30px; height: 34px; border-radius: 10px; }
       .dock-switcher .rail-name,.dock-switcher .chat-reveal { display: none; }
       .dock-switcher .rail-icon { flex-basis: 30px; width: 30px; height: 30px; }
@@ -34,8 +39,8 @@
       .dock-switcher .dock-unread { width: 5px; height: 5px; right: 0; top: 0; }
       .bot-dock.is-focused .dock-chips { overflow: hidden; }
       .bot-dock.is-focused .rail-content { height: 100%; padding-top: 0 !important; padding-bottom: 0 !important; }
-      .bot-dock.is-focused .rail-content > .rail-bot { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-      .bot-dock.is-focused .rail-content > .rail-bot > .dock-chip { flex-shrink: 0; }
+      .bot-dock.is-focused .dock-switcher .dock-chip[aria-expanded="false"] .bot-avatar { opacity: .4; }
+      .dock-switcher .dock-chip[aria-expanded="true"] .bot-avatar { opacity: 1; }
       .bot-dock.is-focused .chat-reveal.is-open { flex: 1; min-height: 0; height: auto !important; }
       .bot-dock.is-focused .conversation { height: 100%; max-height: none; min-height: 0; }
       .bot-dock.is-focused .message-log { flex: 1; }
@@ -52,7 +57,7 @@
       .chat-reveal { height: 0; opacity: 0; transform: translateY(-6px); overflow: hidden; transition: height 200ms var(--ease-out),opacity 150ms var(--ease-out),transform 200ms var(--ease-out); }
       .chat-reveal.is-open { opacity: 1; transform: translateY(0); }
       .chat-reveal.instant { transition: none; }
-      .conversation { max-height: max(140px,min(380px,calc(100vh - 160px))); display: flex; flex-direction: column; padding: 6px 4px 12px; }
+      .conversation { pointer-events: auto; max-height: max(140px,min(380px,calc(100vh - 160px))); display: flex; flex-direction: column; padding: 6px 4px 12px; }
       .message-log { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #45404e transparent; padding: 6px 6px 0; }
       .message-stack { flex: 0 0 auto; margin-top: auto; width: 100%; }
       .message { width: fit-content; max-width: 92%; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; margin: 0 0 10px; padding: 10px 14px; border-radius: 19px 19px 19px 6px; background: #26242d; color: #f0edf5; box-shadow: 0 3px 12px #0002; }
@@ -103,8 +108,8 @@
       .chat-actions summary { list-style: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: #b8afc6; background: #1d1b23; } .chat-actions summary::-webkit-details-marker { display: none; }
       .chat-menu { position: absolute; bottom: 32px; left: 0; z-index: 2; min-width: 170px; padding: 5px; border: 1px solid #ffffff16; border-radius: 12px; background: #242128; box-shadow: 0 8px 24px #0006; }
       .chat-menu a,.chat-menu button { display: block; width: 100%; padding: 9px 10px; border: 0; border-radius: 7px; background: transparent; color: #d8d2e0; font-size: 12px; text-align: left; text-decoration: none; white-space: nowrap; }
-      @media (hover:hover) and (pointer:fine) { .dock-chip:hover,.dock-open:hover,.chat-actions summary:hover,.chat-menu a:hover,.chat-menu button:hover { background: #ffffff09; } }
-      @media (prefers-reduced-motion:reduce) { .chat-reveal { transition: opacity 100ms var(--ease-out); transform: none; } .dock-chips { transform: none; transition: opacity 100ms var(--ease-out),visibility 0s 100ms; } .dock-chips.is-visible { transform: none; transition-delay: 0s; } }
+      @media (hover:hover) and (pointer:fine) { .dock-chip:hover,.chat-actions summary:hover,.chat-menu a:hover,.chat-menu button:hover { background: #ffffff09; } }
+      @media (prefers-reduced-motion:reduce) { .dock-switcher .rail-bot,.dock-switcher.is-hidden .rail-bot { transform: none; transition: opacity 100ms var(--ease-out); transition-delay: 0s; } .dock-switcher.is-hidden { transition-delay: 100ms; } .dock-switcher.instant,.dock-switcher.instant .rail-bot { transition: none; } .chat-reveal { transition: opacity 100ms var(--ease-out); transform: none; } .dock-chips { transform: none; transition: opacity 100ms var(--ease-out),visibility 0s 100ms; } .dock-chips.is-visible { transform: none; transition-delay: 0s; } }
     `;
     shadow.append(style);
     const imageViewer = document.createElement('dialog'); imageViewer.className = 'image-viewer'; imageViewer.setAttribute('aria-label', 'Image preview');
@@ -116,7 +121,7 @@
     const dock = document.createElement('div'); dock.className = 'bot-dock';
     const list = document.createElement('div'); list.className = 'dock-chips'; list.setAttribute('aria-label', 'Your bots'); list.inert = true; list.setAttribute('aria-hidden', 'true');
     const content = document.createElement('div'); content.className = 'rail-content'; list.append(content);
-    const toggle = document.createElement('button'); toggle.className = 'dock-open'; toggle.setAttribute('aria-expanded', 'false');
+    const toggle = document.createElement('button'); toggle.className = 'dock-open'; toggle.type = 'button';
     const svgNS = 'http://www.w3.org/2000/svg';
     const botIcon = document.createElementNS(svgNS, 'svg'); botIcon.setAttribute('viewBox', '0 0 64 64'); botIcon.setAttribute('aria-hidden', 'true'); botIcon.setAttribute('focusable', 'false');
     const faceMask = document.createElementNS(svgNS, 'mask'); const maskId = `xw-launcher-${crypto.randomUUID()}`; faceMask.id = maskId;
@@ -126,7 +131,7 @@
     const face = document.createElementNS(svgNS, 'rect'); face.setAttribute('width', '64'); face.setAttribute('height', '64'); face.setAttribute('fill', 'currentColor'); face.setAttribute('mask', `url(#${maskId})`); botIcon.append(defs, face);
     const dockUnread = document.createElement('span'); dockUnread.className = 'dock-unread'; dockUnread.hidden = true; dockUnread.setAttribute('aria-hidden', 'true'); toggle.append(botIcon, dockUnread); toggle.title = 'Your bots'; toggle.setAttribute('aria-label', 'Your bots');
     const footer = document.createElement('div'); footer.className = 'dock-footer';
-    const switcher = document.createElement('div'); switcher.className = 'dock-switcher'; switcher.setAttribute('aria-label', 'Other bots'); switcher.hidden = true;
+    const switcher = document.createElement('div'); switcher.className = 'dock-switcher'; switcher.setAttribute('aria-label', 'Your bots');
     footer.append(switcher, toggle); dock.append(list, footer);
     shadow.append(dock);
     // Render outside the scrolling avatar row so the label cannot be clipped.
@@ -137,13 +142,25 @@
       tooltipRow?.button.removeAttribute('aria-describedby'); tooltipRow = undefined; tooltip.hidden = true;
     }
     function showTooltip(row) {
-      if (!expanded || destroyed) return;
+      if (destroyed || !botsVisible) return;
       hideTooltip(); tooltipRow = row; tooltip.textContent = row.entry.name; tooltip.hidden = false;
       row.button.setAttribute('aria-describedby', tooltip.id);
       const anchor = row.icon.getBoundingClientRect(), label = tooltip.getBoundingClientRect();
       tooltip.style.left = `${Math.max(8, Math.min(innerWidth - label.width - 8, anchor.left + (anchor.width - label.width) / 2))}px`;
       tooltip.style.top = `${Math.max(8, anchor.top - label.height - 7)}px`;
     }
+    toggle.addEventListener('click', event => {
+      switcher.classList.toggle('instant', !shouldAnimate(event));
+      list.classList.toggle('instant', !shouldAnimate(event));
+      botsVisible = !botsVisible;
+      hideTooltip();
+      if (!botsVisible && (list.contains(shadow.activeElement) || switcher.contains(shadow.activeElement))) toggle.focus({ preventScroll: true });
+      if (botsVisible) {
+        for (const session of sessions.values()) if (session.open) session.unread = 0;
+        if (!entries.length) reconnectInbox();
+      }
+      renderRail();
+    });
     switcher.addEventListener('scroll', hideTooltip, { passive: true });
     list.addEventListener('scroll', hideTooltip, { passive: true });
     const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
@@ -157,28 +174,13 @@
       const contentHeight = children.reduce((height, child) => height + child.getBoundingClientRect().height, 0) + Math.max(0, children.length - 1) * 6;
       content.style.paddingTop = `${Math.max(0, list.clientHeight - contentHeight - 8)}px`;
     }
-    function setRailExpanded(open, animate = false) {
-      const wasHidden = getComputedStyle(list).visibility === 'hidden';
-      if (!open && (list.contains(shadow.activeElement) || switcher.contains(shadow.activeElement))) toggle.focus({ preventScroll: true });
-      hideTooltip();
-      expanded = open; switcher.hidden = !open || !dock.classList.contains('is-focused'); toggle.setAttribute('aria-expanded', String(open)); list.inert = !open; list.setAttribute('aria-hidden', String(!open));
-      if (open && !entries.length) reconnectInbox();
-      if (open) {
-        for (const session of sessions.values()) if (session.open) { session.unread = 0; sizePanel(session); }
-        if (wasHidden) alignListBottom();
-      }
-      if (!animate) list.classList.add('instant');
-      list.classList.toggle('is-visible', open);
-      if (!animate) { void list.offsetHeight; list.classList.remove('instant'); }
-      renderRail();
-    }
-    toggle.addEventListener('click', event => setRailExpanded(!expanded, event.detail > 0));
     dock.addEventListener('keydown', event => {
       if (event.key !== 'Escape') return;
       if (!tooltip.hidden) { hideTooltip(); event.preventDefault(); event.stopPropagation(); return; }
       const actions = event.target.closest('.chat-actions');
       if (actions?.open) { actions.open = false; actions.querySelector('summary').focus(); return; }
-      if (expanded) { setRailExpanded(false); toggle.focus(); }
+      const focused = [...sessions.values()].find(session => session.open);
+      if (focused) { setSessionOpen(focused, false); focused.row.button.focus({ preventScroll: true }); }
     });
     function avatar(entry) {
       const el = document.createElement('span'); el.className = 'bot-avatar';
@@ -219,6 +221,7 @@
       if (open) for (const other of sessions.values()) {
         if (other !== session && other.open) setSessionOpen(other, false, { persist: false });
       }
+      if (open) botsVisible = true;
       session.open = open;
       if (!open && session.el.contains(shadow.activeElement)) session.row.button.focus({ preventScroll: true });
       session.actions.open = false;
@@ -244,12 +247,18 @@
       const focused = [...sessions.values()].find(session => session.open);
       const wasFocused = dock.classList.contains('is-focused');
       dock.classList.toggle('is-focused', !!focused);
-      switcher.hidden = !expanded || !focused;
-      switcher.inert = !expanded;
+      switcher.classList.toggle('is-hidden', !botsVisible);
+      switcher.setAttribute('aria-hidden', String(!botsVisible));
+      switcher.inert = !botsVisible;
+      const showConversation = botsVisible && (!!focused || !items.length);
+      list.classList.toggle('is-visible', showConversation);
+      list.inert = !showConversation; list.setAttribute('aria-hidden', String(!showConversation));
       if (!!focused !== wasFocused) { list.scrollTop = 0; alignListBottom(); }
       for (const [href, row] of rows) if (!paths.has(href)) { row.el.remove(); rows.delete(href); }
       content.querySelector('.rail-empty')?.remove();
-      let listIndex = 0, switcherIndex = 0;
+      const staggerStep = Math.min(40, 240 / Math.max(1, items.length - 1));
+      switcher.style.setProperty('--bot-exit-duration', `${180 + Math.max(0, items.length - 1) * staggerStep}ms`);
+      let switcherIndex = 0;
       items.forEach(entry => {
         let row = rows.get(entry.href);
         if (!row) {
@@ -283,17 +292,29 @@
         const status = session?.open ? 'Collapse' : 'Open';
         row.button.setAttribute('aria-label', `${status} ${entry.name}${unread ? ', unread' : ''}`);
         row.button.setAttribute('aria-expanded', String(session?.open === true));
-        const destination = focused && focused.entry.href !== entry.href ? switcher : content;
-        const index = destination === switcher ? switcherIndex++ : listIndex++;
+        // Keep every avatar in the footer while the selected conversation fills the list.
+        if (session === focused && focused) {
+          if (row.reveal.parentNode !== content) content.append(row.reveal);
+        } else if (row.reveal.parentNode !== row.el) row.el.append(row.reveal);
+        const destination = switcher;
+        const index = switcherIndex++;
+        // Reveal from the Grokbot launcher outward; keep long rows responsive.
+        const delay = (items.length - 1 - index) * staggerStep;
+        row.el.style.setProperty('--bot-enter-delay', `${delay}ms`);
+        row.el.style.setProperty('--bot-exit-delay', `${index * staggerStep}ms`);
         const current = destination.children[index]; if (current !== row.el) destination.insertBefore(row.el, current || null);
       });
       const unread = items.filter(entry => { const session = sessions.get(entry.href); return session ? session.unread > 0 : entry.unread; }).length;
-      toggle.setAttribute('aria-label', unread ? `Your bots, ${unread} unread` : 'Your bots'); dockUnread.hidden = !unread;
+      const launcherLabel = botsVisible ? 'Hide bots' : 'Show bots';
+      toggle.setAttribute('aria-expanded', String(botsVisible));
+      toggle.title = launcherLabel;
+      toggle.setAttribute('aria-label', `${launcherLabel}${unread ? `, ${unread} unread` : ''}`);
+      dockUnread.hidden = !unread;
       if (!items.length) {
         const note = document.createElement('p'); note.className = 'rail-empty';
         const link = document.createElement('a'); link.href = `${location.origin}/i/chat`; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = 'Open X inbox to load bots ↗'; note.append(link); content.append(note);
       }
-      if (!!focused !== wasFocused || getComputedStyle(list).visibility === 'hidden' || expanded && !hadRows && rows.size) alignListBottom();
+      if (!!focused !== wasFocused || getComputedStyle(list).visibility === 'hidden' || !hadRows && rows.size) alignListBottom();
       if (focused) sizePanel(focused);
       if (tooltipRow) { if (tooltipRow.button.isConnected && !tooltipRow.button.closest('[hidden]')) showTooltip(tooltipRow); else hideTooltip(); }
       // Moving a bot between the list and switcher must retain keyboard focus.
@@ -372,7 +393,7 @@
         session.ready = state.ready;
         session.messages = bridge.mergeMessages(session.messages, state.messages);
         if (state.messages.length) messageCache?.put(session.entry, session.messages);
-        if (session.initialized && (!session.open || !expanded)) session.unread += state.messages.filter(row => row.role === 'bot' && !previousIds.has(row.id)).length;
+        if (session.initialized && (!session.open || !botsVisible)) session.unread += state.messages.filter(row => row.role === 'bot' && !previousIds.has(row.id)).length;
         if (state.messages.length) session.initialized = true;
         for (const row of state.messages) {
           if (row.role !== 'user') continue;
