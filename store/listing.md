@@ -75,7 +75,7 @@ All eleven regression test files pass locally. The cursor-follow animation, pres
 Latest release preparation, October 23, 2026:
 
 - Version 0.6.1 is packaged as `dist/x-workspace-0.6.1.zip`; all eleven regression tests and JavaScript syntax checks pass.
-- Google account re-verification completed. The dashboard is gated by the EEA trader declaration and publisher verification; the user selected Trader and authorized the marketplace-rules agreement. Publisher verification was started with explicit user authorization and is waiting for the user to select a payments profile and complete identity or business-document verification. Version 0.6.1 was uploaded and accepted as draft item `elgkealcelkakfgggifocdkinanjmlnb`. The listing includes two screenshots, the icon and small promotional tile, permission explanations, privacy disclosures, and reviewer test instructions. Publisher verification and contact email verification are complete. Review submission is pending.
+- Google account re-verification completed. The dashboard is gated by the EEA trader declaration and publisher verification; the user selected Trader and authorized the marketplace-rules agreement. Publisher verification was started with explicit user authorization and is waiting for the user to select a payments profile and complete identity or business-document verification. Version 0.6.1 was uploaded and accepted as draft item `elgkealcelkakfgggifocdkinanjmlnb`. The listing includes two screenshots, the icon and small promotional tile, permission explanations, privacy disclosures, and reviewer test instructions. Publisher verification and contact email verification are complete. Submitted for Chrome Web Store review on October 23, 2026. The dashboard confirmed "Your extension was submitted for review" and status "Pending review". Automatic publication after approval is enabled.
 - No permissions changed in this update.
 
 Previously observed status on October 22, 2026 (not re-verified):
@@ -85,4 +85,10 @@ Previously observed status on October 22, 2026 (not re-verified):
 - Both screenshots are 1280×800 JPEG captures of the actual UI module with clearly labeled, synthetic demo conversations. No private chats are included.
 - The 440×280 promotional image and PNG extension icons are original artwork. The production ZIP excludes tests, preview code, store materials, and repository metadata.
 
-Store submission and approval are separate steps; record actual dashboard item IDs and review status here once available.
+Store submission and approval are separate steps. Version 0.6.1 is pending review and is not yet approved or published.
+
+Chrome item ID: `elgkealcelkakfgggifocdkinanjmlnb`.
+
+Dashboard: https://chrome.google.com/webstore/devconsole/d3b1df21-3263-4d13-9344-9544dc3bef7d/elgkealcelkakfgggifocdkinanjmlnb/edit
+
+Uploaded ZIP SHA256: `5f2da0973890cff95eafdb045731058aa5500f34e5838a3c9fb3c90e84d80e36`.
