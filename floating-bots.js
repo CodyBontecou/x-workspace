@@ -43,7 +43,7 @@
       .dock-switcher .dock-chip[aria-expanded="true"] .bot-avatar { opacity: 1; }
       .bot-dock.is-focused .chat-reveal.is-open { flex: 1; min-height: 0; height: auto !important; }
       .bot-dock.is-focused .conversation { height: 100%; max-height: none; min-height: 0; }
-      .bot-dock.is-focused .message-log { flex: 1; }
+      .bot-dock.is-focused .message-viewport { flex: 1; }
 
       .rail-bot { flex: none; width: 100%; pointer-events: auto; }
       .dock-chip { display: flex; align-items: center; justify-content: flex-end; gap: 10px; width: fit-content; max-width: 100%; margin-left: auto; height: 44px; border: 0; background: transparent; border-radius: 12px; padding: 0; text-align: right; }
@@ -58,7 +58,10 @@
       .chat-reveal.is-open { opacity: 1; transform: translateY(0); }
       .chat-reveal.instant { transition: none; }
       .conversation { pointer-events: auto; max-height: max(140px,min(380px,calc(100vh - 160px))); display: flex; flex-direction: column; padding: 6px 4px 12px; }
-      .message-log { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #45404e transparent; padding: 6px 6px 0; }
+      .message-viewport { position: relative; display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; }
+      .jump-latest { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); display: grid; place-items: center; width: 36px; height: 36px; border: 1px solid #ffffff30; border-radius: 50%; background: #302b3b; color: #f3f1f7; box-shadow: 0 3px 12px #0006; font-size: 21px; }
+      .jump-latest:hover { background: #433a52; }
+      .message-log { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #45404e transparent; padding: 6px 6px 0; }
       .message-stack { flex: 0 0 auto; margin-top: auto; width: 100%; }
       .message { width: fit-content; max-width: 92%; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; margin: 0 0 10px; padding: 10px 14px; border-radius: 19px 19px 19px 6px; background: #26242d; color: #f0edf5; box-shadow: 0 3px 12px #0002; }
       .message.user { margin-left: auto; background: #3478f6; color: #fff; border-radius: 19px 19px 6px 19px; }
@@ -210,6 +213,14 @@
       const extra = Math.max(0, Math.ceil(list.scrollTop + list.clientHeight - (list.scrollHeight - shrinking)));
       if (extra) content.style.paddingBottom = `${parseFloat(getComputedStyle(content).paddingBottom) + extra}px`;
     }
+    function updateLatestButton(session) {
+      session.latest.hidden = !session.open || session.log.scrollHeight - session.log.scrollTop - session.log.clientHeight < 70;
+    }
+    function scrollToLatest(session) {
+      session.followLatest = true;
+      session.log.scrollTop = session.log.scrollHeight;
+      updateLatestButton(session);
+    }
     function sizePanel(session) {
       if (!session.open) return;
       session.input.style.height = 'auto'; session.input.style.height = `${Math.min(120, session.input.scrollHeight)}px`;
@@ -231,10 +242,12 @@
       const height = open ? session.el.getBoundingClientRect().height : 0;
       reserveScrollSpace(session, height); session.reveal.style.height = `${height}px`;
       session.row.button.setAttribute('aria-expanded', String(open));
-      if (open) { session.unread = 0; if (focus) session.input.focus({ preventScroll: true }); session.log.scrollTop = session.log.scrollHeight; }
+      if (open) { session.unread = 0; session.followLatest = true; if (focus) session.input.focus({ preventScroll: true }); }
       if (!animate) { void session.reveal.offsetHeight; session.reveal.classList.remove('instant'); }
       if (persist) remember(session);
       renderRail();
+      // The focused layout reparents the log and changes its height. Scroll afterward.
+      if (open) scrollToLatest(session); else updateLatestButton(session);
     }
     function renderRail() {
       if (destroyed) return;
@@ -335,6 +348,9 @@
       const cachedMessages = messageCache?.get(entry.href) || [];
       const el = document.createElement('section'); el.className = 'conversation'; el.setAttribute('aria-label', `Chat with ${entry.name}`);
       const log = document.createElement('div'); log.className = 'message-log'; log.setAttribute('role', 'log'); log.setAttribute('aria-label', `${entry.name} messages`); log.setAttribute('aria-live', 'polite');
+      const viewport = document.createElement('div'); viewport.className = 'message-viewport';
+      const latest = document.createElement('button'); latest.type = 'button'; latest.className = 'jump-latest'; latest.textContent = '↓'; latest.title = 'Back to latest message'; latest.setAttribute('aria-label', 'Back to latest message'); latest.hidden = true;
+      viewport.append(log, latest);
       const messagesEl = document.createElement('div'); messagesEl.className = 'message-stack'; log.append(messagesEl);
       const notice = document.createElement('p'); notice.className = 'chat-notice'; notice.setAttribute('role', 'status'); notice.textContent = cachedMessages.length ? '' : 'Connecting to X…';
       const form = document.createElement('form'); form.className = 'chat-compose';
@@ -356,9 +372,21 @@
       const clipPath = document.createElementNS(svgNS, 'path'); clipPath.setAttribute('d', 'M8 12.5 14.5 6a3.5 3.5 0 0 1 5 5l-9 9a5 5 0 0 1-7-7l9-9a2 2 0 0 1 3 3l-8 8a.8.8 0 0 1-1-1l7-7'); clip.append(clipPath); attach.append(clip);
       const input = document.createElement('textarea'); input.className = 'chat-input'; input.rows = 1; input.maxLength = 30000; input.placeholder = 'Message…'; input.setAttribute('aria-label', `Message ${entry.name}`);
       const send = document.createElement('button'); send.type = 'submit'; send.className = 'send-button'; send.textContent = '↑'; send.setAttribute('aria-label', `Send to ${entry.name}`); send.disabled = true;
-      composeLine.append(attach, input, send); compose.append(attachmentList, composeLine, picker); form.append(actions, compose); el.append(log, notice, form); reveal.append(el);
-      const session = { entry, row, el, reveal, log, messagesEl, input, send, notice, reconnect, actions, attachments: [], open: false, ready: false, messages: cachedMessages, pending: new Map(), sendingId: null, initialized: false, unread: 0 };
+      composeLine.append(attach, input, send); compose.append(attachmentList, composeLine, picker); form.append(actions, compose); el.append(viewport, notice, form); reveal.append(el);
+      const session = { entry, row, el, reveal, log, messagesEl, latest, followLatest: true, input, send, notice, reconnect, actions, attachments: [], open: false, ready: false, messages: cachedMessages, pending: new Map(), sendingId: null, initialized: false, unread: 0 };
       sessions.set(entry.href, session);
+      latest.addEventListener('click', () => { scrollToLatest(session); input.focus({ preventScroll: true }); });
+      log.addEventListener('scroll', () => {
+        if (!session.open || !log.clientHeight) return;
+        session.followLatest = log.scrollHeight - log.scrollTop - log.clientHeight < 70;
+        updateLatestButton(session);
+      }, { passive: true });
+      // Keep the latest message visible as attachments and the viewport change size.
+      session.scrollObserver = new ResizeObserver(() => {
+        if (!session.open) return;
+        if (session.followLatest) scrollToLatest(session); else updateLatestButton(session);
+      });
+      session.scrollObserver.observe(log); session.scrollObserver.observe(messagesEl);
       void reveal.offsetHeight;
       function updateControls() { input.disabled = !!session.sendingId; attach.disabled = !!session.sendingId; reconnect.disabled = !!session.sendingId; attachmentList.querySelectorAll('button').forEach(button => { button.disabled = !!session.sendingId; }); send.disabled = !session.ready || !!session.sendingId || (!input.value.trim() && !session.attachments.length); }
       function renderAttachments() {
@@ -428,7 +456,7 @@
       renderMessages(session);
     }
     function renderMessages(session) {
-      const nearBottom = session.log.scrollHeight - session.log.scrollTop - session.log.clientHeight < 70;
+      const nearBottom = session.followLatest;
       const scroll = session.log.scrollTop;
       session.messageNodes ||= new Map();
       const rows = session.messages.map(row => ({ ...row, key: row.id }));
@@ -446,7 +474,7 @@
           for (const attachment of row.images || []) {
             const button = document.createElement('button'); button.type = 'button'; button.className = 'message-image-button'; button.setAttribute('aria-label', `View ${attachment.alt || 'image attachment'}`);
             const image = document.createElement('img'); image.className = 'message-image'; image.src = attachment.src; image.alt = attachment.alt || 'Image attachment'; image.referrerPolicy = 'no-referrer'; image.decoding = 'async';
-            image.addEventListener('load', () => { sizePanel(session); if (nearBottom) session.log.scrollTop = session.log.scrollHeight; });
+            image.addEventListener('load', () => { sizePanel(session); if (session.followLatest) scrollToLatest(session); else updateLatestButton(session); });
             image.addEventListener('error', () => { button.hidden = true; sizePanel(session); });
             button.addEventListener('click', () => { viewerImage.src = attachment.src; viewerImage.alt = image.alt; imageViewer.showModal(); });
             button.append(image); bubble.append(button);
@@ -485,7 +513,7 @@
         if (current !== bubble) session.messagesEl.insertBefore(bubble, current || null);
       });
       sizePanel(session);
-      if (nearBottom) session.log.scrollTop = session.log.scrollHeight; else session.log.scrollTop = scroll;
+      if (nearBottom) scrollToLatest(session); else { session.log.scrollTop = scroll; updateLatestButton(session); }
     }
     const resize = () => { hideTooltip(); for (const session of sessions.values()) sizePanel(session); alignListBottom(); };
     window.addEventListener('resize', resize);
@@ -493,7 +521,7 @@
       update(value) { entries = globalThis.XWorkspaceBots.normalize(value, location.origin); renderRail(); restorePanels(); },
       render() { renderRail(); restorePanels(); },
       openSession,
-      destroy() { hideTooltip(); tooltip.remove(); imageViewer.close(); imageViewer.remove(); destroyed = true; window.removeEventListener('resize', resize); for (const session of sessions.values()) { session.transport?.destroy(); session.releaseAttachments(); for (const pending of session.pending.values()) clearTimeout(pending.timer); } sessions.clear(); rows.clear(); dock.remove(); style.remove(); }
+      destroy() { hideTooltip(); tooltip.remove(); imageViewer.close(); imageViewer.remove(); destroyed = true; window.removeEventListener('resize', resize); for (const session of sessions.values()) { session.scrollObserver.disconnect(); session.transport?.destroy(); session.releaseAttachments(); for (const pending of session.pending.values()) clearTimeout(pending.timer); } sessions.clear(); rows.clear(); dock.remove(); style.remove(); }
     };
   };
 })();
