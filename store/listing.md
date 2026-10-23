@@ -73,7 +73,7 @@ All eleven regression test files pass locally. The cursor-follow animation, pres
 Latest release preparation, October 23, 2026:
 
 - Version 0.6.1 is packaged as `dist/x-workspace-0.6.1.zip`; all eleven regression tests and JavaScript syntax checks pass.
-- The developer dashboard requires Google account re-verification before its current item/review status can be inspected. This build has not yet been uploaded or submitted.
+- Google account re-verification completed. The dashboard is gated by the EEA trader declaration and publisher verification; the user selected Trader and authorized the marketplace-rules agreement. Publisher verification was started with explicit user authorization and is waiting for the user to select a payments profile and complete identity or business-document verification. Version 0.6.1 has not yet been uploaded or submitted.
 - No permissions changed in this update.
 
 Previously observed status on October 22, 2026 (not re-verified):
