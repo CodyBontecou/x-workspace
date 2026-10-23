@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const FRAME_NAME = 'x-workspace-native-chat';
-  const defaults = { enabled: true, botPins: [], botWindows: {}, botPanels: null };
+  const defaults = { enabled: true, botPins: [], botWindows: {}, botPanels: null, botsVisible: true };
   const root = document.documentElement;
   const unread = globalThis.XWorkspaceUnread;
   const bots = globalThis.XWorkspaceBots;

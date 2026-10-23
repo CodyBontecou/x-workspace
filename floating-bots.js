@@ -4,7 +4,7 @@
     const bridge = globalThis.XWorkspaceChatBridge;
     const botMotion = globalThis.XWorkspaceBotMotion();
     const sessions = new Map(), rows = new Map(), restored = new Set();
-    let entries = messageCache?.entries() || [], botsVisible = true, destroyed = false;
+    let entries = messageCache?.entries() || [], botsVisible = getSettings().botsVisible !== false, destroyed = false;
     const style = document.createElement('style');
     style.textContent = `
       :host { all: initial; font: 13px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color: #f3f1f7; color-scheme: dark; --ease-out: cubic-bezier(0.23,1,0.32,1); }
@@ -158,6 +158,7 @@
       switcher.classList.toggle('instant', !shouldAnimate(event));
       list.classList.toggle('instant', !shouldAnimate(event));
       botsVisible = !botsVisible;
+      getSettings().botsVisible = botsVisible;
       botMotion.reset();
       hideTooltip();
       if (!botsVisible && (list.contains(shadow.activeElement) || switcher.contains(shadow.activeElement))) toggle.focus({ preventScroll: true });
@@ -166,6 +167,7 @@
         if (!entries.length) reconnectInbox();
       }
       renderRail();
+      save();
     });
     switcher.addEventListener('scroll', hideTooltip, { passive: true });
     list.addEventListener('scroll', hideTooltip, { passive: true });
@@ -235,7 +237,7 @@
       if (open) for (const other of sessions.values()) {
         if (other !== session && other.open) setSessionOpen(other, false, { persist: false });
       }
-      if (open) botsVisible = true;
+      if (open && persist) { botsVisible = true; getSettings().botsVisible = true; }
       session.open = open;
       if (!open && session.el.contains(shadow.activeElement)) session.row.button.focus({ preventScroll: true });
       session.actions.open = false;
@@ -523,7 +525,7 @@
     window.addEventListener('resize', resize);
     return {
       update(value) { entries = globalThis.XWorkspaceBots.normalize(value, location.origin); renderRail(); restorePanels(); },
-      render() { renderRail(); restorePanels(); },
+      render() { botsVisible = getSettings().botsVisible !== false; renderRail(); restorePanels(); },
       openSession,
       destroy() { botMotion.destroy(); hideTooltip(); tooltip.remove(); imageViewer.close(); imageViewer.remove(); destroyed = true; window.removeEventListener('resize', resize); for (const session of sessions.values()) { session.scrollObserver.disconnect(); session.transport?.destroy(); session.releaseAttachments(); for (const pending of session.pending.values()) clearTimeout(pending.timer); } sessions.clear(); rows.clear(); dock.remove(); style.remove(); }
     };
