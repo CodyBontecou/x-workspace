@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bot motion playground</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #08090b; color: #f2f2f4; font: 15px system-ui,sans-serif; min-height: 100svh; display: grid; place-items: center; padding: 40px 24px; }
+  main { width: min(760px,100%); display: grid; grid-template-columns: 1fr 160px; gap: 40px; align-items: center; }
+  .eyebrow { color: #aaa5b5; font-size: 12px; letter-spacing: .14em; }
+  h1 { font-size: clamp(38px,6vw,64px); line-height: 1.03; letter-spacing: -.055em; font-weight: 550; margin: 24px 0; }
+  p { color: #9b9ba5; line-height: 1.7; max-width: 340px; }
+  .bots { display: grid; gap: 10px; justify-content: center; }
+  button { width: 100px; height: 100px; padding: 20px; display: grid; place-items: center; border: 0; border-radius: 26px; background: transparent; cursor: pointer; }
+  button:focus-visible { outline: 2px solid #bca2ff; outline-offset: 4px; }
+  .face { width: 100%; aspect-ratio: 1; display: grid; place-items: center; pointer-events: none; }
+  .face svg { width: 100%; height: 100%; overflow: visible; }
+  .dock-study { grid-column: 1 / -1; padding-top: 24px; border-top: 1px solid #ffffff12; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .dock-study span { color: #777982; font-size: 12px; }
+  .mini-bots { display: flex; gap: 3px; }
+  .mini-bots button { width: 30px; height: 34px; padding: 3.5px; border-radius: 10px; }
+  @media (hover:hover) and (pointer:fine) { button:hover { background: #141518; } }
+  @media (max-width:500px) { main { grid-template-columns: 1fr; } .bots { grid-template-columns: repeat(3,80px); } button { width: 80px; height: 80px; padding: 14px; } }
+</style>
+<main>
+  <div><span class="eyebrow">X WORKSPACE · MOTION STUDY</span><h1>A little curious.<br>A little wobbly.</h1><p>Move your mouse over a bot. It turns toward you, follows your cursor, then bounces gently home.</p><p>Same spring and tracking used in the extension. Touch and reduced motion keep things still.</p></div>
+  <div class="bots" aria-label="Bot motion samples"></div>
+  <div class="dock-study"><span>Actual dock size</span><div class="mini-bots" aria-label="Actual size bot samples"></div></div>
+</main>
+<script src="/avatars.js"></script>
+<script src="/bot-motion.js"></script>
+<script>
+const motion = XWorkspaceBotMotion();
+const shapes = [
+'M34 3C50 2 61 14 61 30C62 47 51 60 34 61C17 63 4 53 3 37C1 20 15 5 34 3Z',
+'M17 9C30 3 45 3 54 12C63 24 62 43 53 52C41 62 22 62 11 52C2 40 3 21 17 9Z',
+'M26 6C34 0 41 9 48 18L61 38C68 52 47 57 31 60C12 65 3 61 5 46L12 19C15 10 20 7 26 6Z'
+];
+for (const container of document.querySelectorAll('.bots,.mini-bots')) {
+['#ff6700','#ff9500','#854bff','#00bba6','#fa2595','#ff6700'].forEach((color,i) => {
+ const button = document.createElement('button'); button.type = 'button'; button.setAttribute('aria-label', ['Tangerine','Mango','Violet','Mint','Berry','Peach'][i] + ' bot');
+ const face = document.createElement('span'); face.className = 'face';
+ face.append(XWorkspaceAvatars.render({tag:'svg',attrs:{viewBox:'0 0 64 64'},children:[
+  {tag:'path',attrs:{d:shapes[i%3],fill:color},children:[]},
+  ...[30,46].map(x => ({tag:'rect',attrs:{x:String(x),y:'21',width:'7',height:'16',rx:'3.5',fill:'#000',transform:`rotate(-30 ${x+3.5} 29)`},children:[]}))
+ ]}));
+ button.append(face); container.append(button); motion.attach(button, () => face);
+});
+}
+window.addEventListener('pagehide', () => motion.destroy(), {once:true});
+</script>
+</html>

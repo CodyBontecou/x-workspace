@@ -2,6 +2,7 @@
   'use strict';
   globalThis.XWorkspaceFloatingBots = function (shadow, { getSettings, save, engines, reconnectInbox, messageCache }) {
     const bridge = globalThis.XWorkspaceChatBridge;
+    const botMotion = globalThis.XWorkspaceBotMotion();
     const sessions = new Map(), rows = new Map(), restored = new Set();
     let entries = messageCache?.entries() || [], botsVisible = true, destroyed = false;
     const style = document.createElement('style');
@@ -137,6 +138,7 @@
     const switcher = document.createElement('div'); switcher.className = 'dock-switcher'; switcher.setAttribute('aria-label', 'Your bots');
     footer.append(switcher, toggle); dock.append(list, footer);
     shadow.append(dock);
+    botMotion.attach(toggle, () => botIcon);
     // Render outside the scrolling avatar row so the label cannot be clipped.
     const tooltip = document.createElement('div'); tooltip.className = 'bot-tooltip';
     tooltip.id = `xw-bot-tooltip-${crypto.randomUUID()}`; tooltip.setAttribute('role', 'tooltip'); tooltip.hidden = true; shadow.append(tooltip);
@@ -156,6 +158,7 @@
       switcher.classList.toggle('instant', !shouldAnimate(event));
       list.classList.toggle('instant', !shouldAnimate(event));
       botsVisible = !botsVisible;
+      botMotion.reset();
       hideTooltip();
       if (!botsVisible && (list.contains(shadow.activeElement) || switcher.contains(shadow.activeElement))) toggle.focus({ preventScroll: true });
       if (botsVisible) {
@@ -267,7 +270,7 @@
       list.classList.toggle('is-visible', showConversation);
       list.inert = !showConversation; list.setAttribute('aria-hidden', String(!showConversation));
       if (!!focused !== wasFocused) { list.scrollTop = 0; alignListBottom(); }
-      for (const [href, row] of rows) if (!paths.has(href)) { row.el.remove(); rows.delete(href); }
+      for (const [href, row] of rows) if (!paths.has(href)) { row.disposeMotion(); row.el.remove(); rows.delete(href); }
       content.querySelector('.rail-empty')?.remove();
       const staggerStep = Math.min(40, 240 / Math.max(1, items.length - 1));
       switcher.style.setProperty('--bot-exit-duration', `${180 + Math.max(0, items.length - 1) * staggerStep}ms`);
@@ -281,6 +284,7 @@
           const icon = document.createElement('span'); icon.className = 'rail-icon';
           const reveal = document.createElement('div'); reveal.className = 'chat-reveal'; reveal.id = `xw-conversation-${crypto.randomUUID()}`; reveal.inert = true; reveal.setAttribute('aria-hidden', 'true'); button.setAttribute('aria-controls', reveal.id);
           button.append(name, icon); el.append(button, reveal); row = { el, button, name, icon, reveal, entry }; rows.set(entry.href, row);
+          row.disposeMotion = botMotion.attach(button, () => icon.querySelector('.bot-avatar'));
           icon.addEventListener('pointerenter', event => { if (event.pointerType === 'mouse' && matchMedia('(hover:hover) and (pointer:fine)').matches) showTooltip(row); });
           icon.addEventListener('pointerleave', hideTooltip);
           button.addEventListener('focus', () => { if (button.matches(':focus-visible')) showTooltip(row); });
@@ -521,7 +525,7 @@
       update(value) { entries = globalThis.XWorkspaceBots.normalize(value, location.origin); renderRail(); restorePanels(); },
       render() { renderRail(); restorePanels(); },
       openSession,
-      destroy() { hideTooltip(); tooltip.remove(); imageViewer.close(); imageViewer.remove(); destroyed = true; window.removeEventListener('resize', resize); for (const session of sessions.values()) { session.scrollObserver.disconnect(); session.transport?.destroy(); session.releaseAttachments(); for (const pending of session.pending.values()) clearTimeout(pending.timer); } sessions.clear(); rows.clear(); dock.remove(); style.remove(); }
+      destroy() { botMotion.destroy(); hideTooltip(); tooltip.remove(); imageViewer.close(); imageViewer.remove(); destroyed = true; window.removeEventListener('resize', resize); for (const session of sessions.values()) { session.scrollObserver.disconnect(); session.transport?.destroy(); session.releaseAttachments(); for (const pending of session.pending.values()) clearTimeout(pending.timer); } sessions.clear(); rows.clear(); dock.remove(); style.remove(); }
     };
   };
 })();

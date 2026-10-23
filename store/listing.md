@@ -1,6 +1,6 @@
 # X Workspace store listing
 
-Package: `dist/x-workspace-0.6.0.zip`.
+Package: `dist/x-workspace-0.6.1.zip`.
 Targets: Chrome Web Store and Microsoft Edge Add-ons. Firefox and Safari require separate ports and verification.
 
 ## Public listing
@@ -60,11 +60,23 @@ Data: Bot identifiers, names, avatars, unread states, message text, and drafts a
 6. Follow a linked X post; the page changes while the custom chat stays open. Back restores the previous page.
 7. Disable the workspace using its toolbar popup to remove the overlay and native connections.
 
-All seven regression test files pass locally. Chrome/Arc live chat behavior was verified on October 22, 2026. Edge compatibility still requires a real Edge installation test before submission; no Edge-specific runtime result is claimed.
+All eleven regression test files pass locally. The cursor-follow animation, press continuity, reduced-motion behavior, and cleanup are covered by dedicated motion checks. Chrome/Arc live chat behavior was verified on October 22, 2026. Edge compatibility still requires a real Edge installation test before submission; no Edge-specific runtime result is claimed.
+
+## Version 0.6.1 release notes
+
+- Add springy cursor tracking, independent eye movement for supported SVG avatars, and soft press feedback to the bot dock and launcher.
+- Scale movement to compact dock icons and respect reduced-motion and touch input.
+- Bundle the motion module locally; no new permissions or external services.
 
 ## Submission status
 
-As of October 22, 2026:
+Latest release preparation, October 23, 2026:
+
+- Version 0.6.1 is packaged as `dist/x-workspace-0.6.1.zip`; all eleven regression tests and JavaScript syntax checks pass.
+- The developer dashboard requires Google account re-verification before its current item/review status can be inspected. This build has not yet been uploaded or submitted.
+- No permissions changed in this update.
+
+Previously observed status on October 22, 2026 (not re-verified):
 
 - Chrome Web Store: the signed-in account is at developer registration. The Developer Agreement and Privacy Policies have not been accepted, and the displayed one-time $5 registration fee has not been paid. No item has been uploaded or submitted.
 - Microsoft Edge Add-ons: Partner Center requires Microsoft sign-in. No item has been uploaded or submitted.

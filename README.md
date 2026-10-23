@@ -15,7 +15,7 @@ Sign in to X in the same browser profile. If X needs your chat passcode, unlock 
 
 ## Using your bots
 
-- Bots appear as small icons at the bottom right. Click the white Grokbot icon to hide or show the icons and current chat; reopening preserves the selected conversation. Hover or focus an icon to see its name; the row scrolls horizontally when needed.
+- Bots appear as small icons at the bottom right. Click the white Grokbot icon to hide or show the icons and current chat; reopening preserves the selected conversation. Hover or focus an icon to see its name. Mouse hover adds a springy tilt and gentle cursor tracking; paired SVG eye rectangles follow independently. Reduced motion and touch keep the icons still; the row scrolls horizontally when needed.
 - Click a bot icon to open its conversation above the row. The active bot stays fully opaque while the other bot avatars are dimmed. Click another icon to switch chats, or click the active icon again (or press Escape) to minimize it. Connections, history, and drafts remain alive when switching.
 - Incoming messages use dark floating pills; outgoing messages use blue pills. History scrolls above the composer, which stays at the bottom of the focused chat.
 - Each bot has its own composer and in-memory draft. Collapsing a conversation keeps its connection, history, and draft alive. Replies received while its conversation is minimized add an unread dot; opening the conversation clears the dot.
@@ -68,12 +68,14 @@ Run with a current Node.js release:
 node tests/frame-policy.test.mjs
 node tests/unread.test.mjs
 node tests/bots.test.mjs
+node tests/bot-motion.test.mjs
 node tests/inbox-markup.test.mjs
 node tests/chat-bridge.test.mjs
 node tests/chat-transport.test.mjs
 node tests/message-cache.test.mjs
 node tests/navigation.test.mjs
 node --check avatars.js
+node --check bot-motion.js
 node --check chat-bridge.js
 node --check chat-transport.js
 node --check message-cache.js
@@ -91,6 +93,8 @@ For a local browser fixture, start:
 ```sh
 python3 tests/fixtures/serve-floating.py
 ```
+
+Try the cursor-follow motion at `http://127.0.0.1:8766/tests/fixtures/bot-motion.html`.
 
 Open `http://127.0.0.1:8766/tests/fixtures/floating-bots.html`. It uses fake conversations and local replies; no messages go to X. Browser checks verified custom sending and replies, independent drafts, inline conversation toggling, rapid animation reversal, collapsed unread dots, and inbox updates. The feed-scroll fixture also covers page scroll behavior.
 

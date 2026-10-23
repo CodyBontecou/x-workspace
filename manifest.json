@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "X Workspace",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Animated bot conversations in a minimal sidebar, with message pills and independent drafts.",
   "permissions": [
     "storage",
@@ -34,6 +34,7 @@
         "chat-transport.js",
         "message-cache.js",
         "navigation.js",
+        "bot-motion.js",
         "floating-bots.js",
         "content.js"
       ],
