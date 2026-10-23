@@ -9,7 +9,7 @@ Name: X Workspace
 
 Summary: Manage your Grok bots on X with focused floating chats, compact avatars, unread dots, and independent drafts.
 
-Category: Productivity
+Category: Productivity / Communication
 
 Language: English
 
@@ -50,6 +50,8 @@ Remote code: Extension JavaScript is bundled in the uploaded ZIP; there is no re
 
 Data: Bot identifiers, names, avatars, unread states, message text, and drafts are processed locally to provide chat. Native X frames communicate with X, and user-submitted messages go to X. The extension developer receives none of that data. Do not describe the extension as never accessing personal communications or website content. Complete store data checkboxes according to the store's definitions and these facts.
 
+Dashboard disclosures for version 0.6.1: personally identifiable information, personal communications, user activity (local hover/press/pointer handling), and website content. These categories include local processing; no developer telemetry is collected. Remote-code explanation distinguishes bundled extension scripts from native X webpages loaded in hidden web frames.
+
 ## Reviewer testing notes
 
 1. Sign into a reviewer-controlled X account with access to Grok bots and at least one existing bot session. No developer test credentials are included.
@@ -73,7 +75,7 @@ All eleven regression test files pass locally. The cursor-follow animation, pres
 Latest release preparation, October 23, 2026:
 
 - Version 0.6.1 is packaged as `dist/x-workspace-0.6.1.zip`; all eleven regression tests and JavaScript syntax checks pass.
-- Google account re-verification completed. The dashboard is gated by the EEA trader declaration and publisher verification; the user selected Trader and authorized the marketplace-rules agreement. Publisher verification was started with explicit user authorization and is waiting for the user to select a payments profile and complete identity or business-document verification. Version 0.6.1 has not yet been uploaded or submitted.
+- Google account re-verification completed. The dashboard is gated by the EEA trader declaration and publisher verification; the user selected Trader and authorized the marketplace-rules agreement. Publisher verification was started with explicit user authorization and is waiting for the user to select a payments profile and complete identity or business-document verification. Version 0.6.1 was uploaded and accepted as draft item `elgkealcelkakfgggifocdkinanjmlnb`. The listing includes two screenshots, the icon and small promotional tile, permission explanations, privacy disclosures, and reviewer test instructions. Publisher verification and contact email verification are complete. Review submission is pending.
 - No permissions changed in this update.
 
 Previously observed status on October 22, 2026 (not re-verified):

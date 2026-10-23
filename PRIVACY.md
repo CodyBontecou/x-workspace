@@ -1,6 +1,6 @@
 # X Workspace privacy policy
 
-Effective October 22, 2026.
+Effective October 23, 2026.
 
 X Workspace is an independent browser extension maintained by Cody Bontecou. It lets you manage Grok bot conversations within your existing X session. It is not affiliated with or endorsed by X or xAI.
 
@@ -9,6 +9,8 @@ X Workspace is an independent browser extension maintained by Cody Bontecou. It 
 The extension reads bot names, conversation paths, avatars, unread indicators, and rendered messages on x.com to display the bot sidebar and custom chats. Recent observed message text, validated links, and bot metadata are cached in the browser's local extension storage so chats appear immediately after a reload while X reconnects. The cache retains up to 100 messages and about 80 KB per conversation for the 20 most recently updated conversations; snapshots expire after seven days. Cached messages are shared within the browser profile and are not synchronized to a server. Unsent custom drafts and unconfirmed outgoing messages stay in the current tab's memory and are discarded when that page is reloaded or closed.
 
 Extension settings are saved in the browser's local extension storage. These include whether the workspace is enabled, saved bot pins and their names, paths and avatar metadata, and the focused conversation. Older versions may also have saved window sizes and positions. These preferences are shared between X accounts used in the same browser profile. They are not synchronized by this extension to a server.
+
+Pointer positions and hover/press events over the extension's bot controls are processed in tab memory to animate the icons and provide interface feedback. These events are not logged, cached, analyzed, or transmitted to the developer. Reduced-motion and touch input disable cursor-follow movement.
 
 ## Messages and network activity
 
@@ -19,6 +21,8 @@ Files you select, drop, or paste into the custom composer remain in the tab's me
 Inline history previews reuse images loaded by the live X conversation. Embedded raster images are decoded into temporary local image URLs with bounded memory use; approved X image CDN URLs may also load directly. Image contents and preview URLs are excluded from the saved message cache and are released when the connection's document is closed.
 
 Document download cards may cache filenames, displayed file sizes, and a position within the message. Clicking a card invokes the matching file's native X download control. The extension does not cache document contents or download URLs.
+
+User data is used only to provide the extension's bot-chat features. It is not sold, used for advertising, or used to determine creditworthiness or for lending. Transfers to X occur only as needed for these features, including messages and files you choose to send.
 
 The extension has no developer-operated backend, analytics, advertising, or telemetry. It does not sell user data, send conversation content to its developer, or use it to train models. It does not request permission to read cookies, passwords, payment information, or browsing history outside x.com.
 
